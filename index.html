@@ -156,6 +156,11 @@
 	});
       	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
 
+        fetch('Mitspieler.txt')
+            .then(r => r.ok ? r.text() : Promise.reject())
+            .then(text => loadPlayers(text))
+            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));		
+
         document.getElementById('fileInput').addEventListener('change', e => {
             const file = e.target.files[0];
             if (file) {
@@ -558,6 +563,7 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
 
 
 
