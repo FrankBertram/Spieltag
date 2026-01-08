@@ -469,7 +469,7 @@ function updateRanking() {
 
         // Prüfen ob Tischwechsel → dicke Linie
         const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
-	row.className = isTableChange ? 'thick-line' : '';
+        row.className = isTableChange ? 'thick-line' : '';
 
         row.innerHTML = `
             <td>${i + 1}</td>
@@ -477,7 +477,7 @@ function updateRanking() {
             <td>
                 <div class="edit-cell">
                     ${p.res1 !== '' ? p.res1 : '-'}
-                    ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 1)">Kor.</button>` : ''}
+                    ${currentRound === 2 ? '' : (p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 1)">Kor.</button>` : '')}
                 </div>
             </td>
             <td>${p.table}</td>
@@ -492,6 +492,7 @@ function updateRanking() {
         tbody.appendChild(row);
     });
 }
+
 
 
 
@@ -562,3 +563,4 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
