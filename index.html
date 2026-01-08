@@ -159,23 +159,44 @@
         fetch('Mitspieler.txt')
             .then(r => r.ok ? r.text() : Promise.reject())
             .then(text => loadPlayers(text))
-            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));		
+            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
 
-document.getElementById('fileInput').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-            clearPlayerList();     // ⭐ FIX: Vorher leeren
-            loadPlayers(ev.target.result);
-            console.log('✅ Neue Liste geladen:', selectedPlayers.length, 'Spieler');  // ⭐ FIX: Debug
-        };
-        reader.readAsText(file);
+
+        document.getElementById('fileInput').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => loadPlayers(ev.target.result);
+                reader.readAsText(file);
+            }
+        });
+
+
+
+document.getElementById('availableFiles').addEventListener('change', async (e) => {
+    const fileName = e.target.value;
+    const status = document.getElementById('playerStatus');
+    
+    if (!fileName) {
+        selectedPlayers = []; results = {};
+        status.textContent = 'Keine Liste geladen';
+        updateRanking(); 
+        return;
+    }
+    
+    try {
+        status.textContent = 'Lade ' + fileName + '...';
+        const res = await fetch(fileName);
+        const text = await res.text();
+        loadPlayers(text);
+        status.textContent = fileName + ' OK (' + selectedPlayers.length + ' Spieler)';
+        updateRanking();
+    } catch(e) {
+        status.textContent = 'Fehler: ' + fileName;
     }
 });
 
         function loadPlayers(text) {
-            clearPlayerList();  // oder direkt: selectedPlayers = []; updatePlayerList();			
             const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
             names.forEach(name => addPlayerToList(name));
             updateSelectedPlayers();
@@ -213,14 +234,6 @@ document.getElementById('fileInput').addEventListener('change', e => {
             document.getElementById('addPlayerSection').style.display = 'block';
             document.getElementById('newPlayerName').focus();
         }
-
-function clearPlayerList() {
-    allPlayers = [];      // ⭐ FIX: Auch allPlayers leeren
-    selectedPlayers = [];
-    const container = document.getElementById('playerCheckboxes');  // ⭐ FIX: Richtige ID
-    if (container) container.innerHTML = '';                       // ⭐ FIX: Checkboxes löschen
-    updateRanking();
-}
 
         function addNewPlayer() {
             const input = document.getElementById('newPlayerName');
@@ -576,9 +589,3 @@ function updateRanking() {
     </script>
 </body>
 </html>
-
-
-
-
-
-
