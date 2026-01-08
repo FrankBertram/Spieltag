@@ -156,31 +156,6 @@
 	});
       	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
 
-// === FILE UPLOAD (funktioniert IMMER) ===
-const html = `
-<div id="fileUploadSection" style="margin: 20px 0; padding: 15px; border: 2px dashed #ccc;">
-    <input type="file" id="txtUpload" accept=".txt" style="width: 250px;">
-    <div id="uploadStatus"></div>
-</div>`;
-
-document.getElementById('rankingTable').insertAdjacentHTML('beforebegin', html);
-
-document.getElementById('txtUpload').onchange = function(e) {
-    const file = e.target.files[0];
-    const status = document.getElementById('uploadStatus');
-    
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = () => {
-        loadPlayers(reader.result);
-        status.innerHTML = `✅ <b>${file.name}</b> (${selectedPlayers.length} Spieler)`;
-        updatePlayerSelect(true);
-        updateRanking();
-    };
-    reader.readAsText(file);
-};
-
         document.getElementById('fileInput').addEventListener('change', e => {
             const file = e.target.files[0];
             if (file) {
@@ -583,5 +558,6 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
 
 
