@@ -86,7 +86,7 @@
     
     <div class="container">
         <div class="left">
-            <h3>Mitspieler auswählen</h3>
+            <h3>Mitspieler wählen</h3>
             <div class="checkbox-list" id="playerCheckboxes"></div>
             
             <button class="add-player" onclick="showAddPlayer()">Gast hinzufügen</button>
@@ -104,7 +104,7 @@
             </div>
             
             <select id="playerSelect">
-                <option value="">-- Spieler auswählen --</option>
+                <option value="">-- Spieler wählen --</option>
             </select>
             
             <input type="number" id="currentResult" placeholder="Ergebnis eintragen">
@@ -250,7 +250,7 @@
         function updatePlayerSelect(preselectNext = false) {
             const select = document.getElementById('playerSelect');
             const currentValue = select.value;
-            select.innerHTML = '<option value="">-- Spieler auswählen --</option>';
+            select.innerHTML = '<option value="">-- Spieler wählen --</option>';
 
             let candidates = [];
 
@@ -338,7 +338,7 @@
         function saveCurrentResult() {
             const selected = document.getElementById('playerSelect').value;
             if (!selected) {
-                alert('Bitte einen Spieler auswählen!');
+                alert('Bitte einen Spieler wählen!');
                 return;
             }
             const value = document.getElementById('currentResult').value;
@@ -555,6 +555,7 @@ function updateRanking() {
 </body>
 
 </html>
+
 
 
 
