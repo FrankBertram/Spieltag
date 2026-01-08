@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitspieler und Ergebnisse (2 Serien)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+        .header {
+            display: flex;09:43 08.01.2026
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .header img {
+            height: 40px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .left, .middle, .right { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .left { flex: 0 0 200px; }
+        .middle { flex: 0 0 250px; }
+        .right { flex: 1; min-width: 400px; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        button { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        button.add-player { background: #2196F3; margin-top: 20px; }
+        button.add-player:hover { background: #0b7dda; }
+        button.edit-btn { background: #ff9800; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 5px; }
+        button.edit-btn:hover { background: #e68a00; }
+        button.export-btn { background: #2196F3; margin-top: 20px; }
+        button.export-btn:hover { background: #0b7dda; }
+        .checkbox-list { max-height: 800px; overflow-y: auto; margin: 15px 0; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 12px;
+            transform: scale(1.3);
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            word-wrap: break-word;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }
+        th { background: #f2f2f2; }
+        th:nth-child(1), td:nth-child(1) { width: 45px; text-align: right; }
+        th:nth-child(2), td:nth-child(2) { width: 180px; }
+        th:nth-child(3), td:nth-child(3) { text-align: right; }
+        th:nth-child(4), td:nth-child(4) { width: 20px; text-align: right; }
+        th:nth-child(5), td:nth-child(5) { text-align: right; }
+        th:nth-child(6), td:nth-child(6) { text-align: right; }
+        .edit-cell { display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
+        #message { color: green; margin-top: 10px; font-weight: bold; }
+        .round-info { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        #addPlayerSection { display: none; margin-top: 10px; }
+        #exportSection { display: none; margin-top: 20px; }
+	.thick-line {
+	   border-top: 3px solid #333 !important;
+	}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="Skat.png" alt="Skat-Logo">
+        <h2>1. Sintherner Skatclub – 2 Serien</h2>
+    </div>
+
+    <div>
+        <label for="fileInput">Mitspieler.txt laden (falls nicht im Ordner):</label>
+        <input type="file" id="fileInput" accept=".txt">
+    </div>
+    
+    <div class="container">
+        <div class="left">
+            <h3>Mitspieler auswählen</h3>
+            <div class="checkbox-list" id="playerCheckboxes"></div>
+            
+            <button class="add-player" onclick="showAddPlayer()">Neuen Mitspieler hinzufügen (z. B. Gast)</button>
+            
+            <div id="addPlayerSection">
+                <input type="text" id="newPlayerName" placeholder="Name eingeben">
+                <button onclick="addNewPlayer()">Hinzufügen</button>
+            </div>
+        </div>
+        
+        <div class="middle">
+            <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
+            <div class="round-info" id="roundInfo">
+                Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
+            </div>
+            
+            <select id="playerSelect">
+                <option value="">-- Spieler auswählen --</option>
+            </select>
+            
+            <input type="number" id="currentResult" placeholder="Ergebnis eintragen">
+            
+            <button onclick="saveCurrentResult()">Speichern und nächsten wählen</button>
+            
+            <button id="startRound2" onclick="startRound2()" style="display:none; background:#ff9800;">
+                Serie 2 starten
+            </button>
+            
+            <p id="message"></p>
+
+            <div id="exportSection">
+                <button class="export-btn" onclick="exportToCSV()">Endstand als CSV exportieren</button>
+            </div>
+        </div>
+        
+        <div class="right">
+            <h3 id="rankingTitle">Zwischenstand nach Serie 1</h3>
+            <table id="rankingTable">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Name</th>
+                        <th>Serie 1</th>
+			<th>T.</th>
+                        <th>Serie 2</th>
+                        <th>Gesamt</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allPlayers = [];
+        let selectedPlayers = [];
+        let results = {};
+        let currentRound = 1;
+        let editingPlayer = null;
+        let editingSeries = null;
+
+        fetch('Mitspieler.txt')
+            .then(r => r.ok ? r.text() : Promise.reject())
+            .then(text => loadPlayers(text))
+            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+
+        document.getElementById('fileInput').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => loadPlayers(ev.target.result);
+                reader.readAsText(file);
+            }
+        });
+
+        function loadPlayers(text) {
+            const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
+            names.forEach(name => addPlayerToList(name));
+            updateSelectedPlayers();
+        }
+
+        function addPlayerToList(name) {
+            name = name.trim();
+            if (!name) return;
+            const normalized = name.toLowerCase();
+            if (allPlayers.some(p => p.toLowerCase() === normalized)) return;
+
+            allPlayers.push(name);
+            results[name] = { res1: '', res2: '' };
+
+            const container = document.getElementById('playerCheckboxes');
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = 'cb_' + name;
+            cb.checked = true;
+            cb.onchange = updateSelectedPlayers;
+
+            const label = document.createElement('label');
+            label.htmlFor = cb.id;
+            label.textContent = name;
+
+            div.appendChild(cb);
+            div.appendChild(label);
+            container.appendChild(div);
+        }
+
+        function showAddPlayer() {
+            document.getElementById('addPlayerSection').style.display = 'block';
+            document.getElementById('newPlayerName').focus();
+        }
+
+        function addNewPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+
+            addPlayerToList(name);
+            input.value = '';
+            document.getElementById('addPlayerSection').style.display = 'none';
+
+            updateSelectedPlayers();
+            updateRanking();
+            document.getElementById('message').textContent = `${name} wurde hinzugefügt und ist ausgewählt!`;
+        }
+
+        document.getElementById('newPlayerName').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewPlayer();
+            }
+        });
+
+        function updateSelectedPlayers() {
+            selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            resetGameIfNeeded();
+            updatePlayerSelect();
+            updateRanking();
+        }
+
+        function resetGameIfNeeded() {
+            const newSelected = new Set(selectedPlayers);
+            Object.keys(results).forEach(name => {
+                if (!newSelected.has(name)) {
+                    results[name] = { res1: '', res2: '' };
+                }
+            });
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+            document.getElementById('exportSection').style.display = 'none';
+            setupRound1();
+        }
+
+        // NEU: Sortierung des Dropdowns in Serie 2 nach Serie-1-Ergebnis
+        function updatePlayerSelect(preselectNext = false) {
+            const select = document.getElementById('playerSelect');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Spieler auswählen --</option>';
+
+            let candidates = [];
+
+            selectedPlayers.forEach(player => {
+                let needsInput = false;
+
+                if (currentRound === 1 && results[player].res1 === '') {
+                    needsInput = true;
+                } else if (currentRound === 2 && results[player].res2 === '') {
+                    needsInput = true;
+                }
+
+                if (editingPlayer === player) {
+                    needsInput = true;
+                }
+
+                if (needsInput) {
+                    candidates.push({
+                        name: player,
+                        score: parseFloat(results[player].res1) || 0
+                    });
+                }
+            });
+
+            // In Serie 2 nach Serie-1-Punkten absteigend sortieren
+            if (currentRound === 2) {
+                candidates.sort((a, b) => b.score - a.score);
+            } else {
+                // In Serie 1 alphabetisch (oder wie bisher)
+                candidates.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            candidates.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+
+            if (preselectNext && candidates.length > 0) {
+                let nextPlayer = null;
+                if (currentValue && candidates.find(c => c.name === currentValue)) {
+                    const index = candidates.findIndex(c => c.name === currentValue);
+                    nextPlayer = candidates[index + 1] || candidates[0];
+                } else {
+                    nextPlayer = candidates[0];
+                }
+                if (nextPlayer) {
+                    select.value = nextPlayer.name;
+                    document.getElementById('currentResult').focus();
+                }
+            } else if (editingPlayer) {
+                select.value = editingPlayer;
+                document.getElementById('currentResult').focus();
+            }
+
+            checkRoundComplete();
+        }
+
+        function checkRoundComplete() {
+            if (currentRound === 1) {
+                const allHaveRes1 = selectedPlayers.every(p => results[p].res1 !== '');
+                document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
+            } else if (currentRound === 2) {
+                const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
+                document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
+            }
+        }
+
+        function prepareEdit(player, series) {
+            editingPlayer = player;
+            editingSeries = series;
+
+            const value = series === 1 ? results[player].res1 : results[player].res2;
+
+            document.getElementById('currentResult').value = value;
+            document.getElementById('currentResult').focus();
+
+            updatePlayerSelect();
+
+            document.getElementById('message').textContent = 
+                `Korrigiere Ergebnis Serie ${series} für ${player} – neuen Wert eingeben und speichern.`;
+        }
+
+        function saveCurrentResult() {
+            const selected = document.getElementById('playerSelect').value;
+            if (!selected) {
+                alert('Bitte einen Spieler auswählen!');
+                return;
+            }
+            const value = document.getElementById('currentResult').value;
+            if (value === '') {
+                alert('Bitte ein Ergebnis eingeben!');
+                return;
+            }
+
+            const numValue = parseFloat(value);
+
+            if (currentRound === 1 || editingSeries === 1) {
+                results[selected].res1 = numValue;
+            } else if (currentRound === 2 || editingSeries === 2) {
+                results[selected].res2 = numValue;
+            }
+
+            document.getElementById('message').textContent = 
+                `Ergebnis Serie ${editingSeries || currentRound} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
+
+            document.getElementById('currentResult').value = '';
+            const wasEditing = editingPlayer !== null;
+            editingPlayer = null;
+            editingSeries = null;
+
+            updatePlayerSelect(!wasEditing);
+            updateRanking();
+            checkRoundComplete();
+        }
+
+        function startRound2() {
+            currentRound = 2;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+            document.getElementById('roundTitle').textContent = 'Serie 2: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Jetzt das Ergebnis der zweiten Serie für jeden Spieler eintragen.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 2 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+            checkRoundComplete();
+        }
+
+function getTableSizes(n) {
+    const sizes = [];
+    if (n < 3) return sizes;
+
+    // Wenn durch 4 teilbar → nur 4er-Tische
+    if (n % 4 === 0) {
+        for (let i = 0; i < n; i += 4) sizes.push(4);
+        return sizes;
+    }
+
+    // Wenn durch 3 teilbar, aber NICHT durch 4 → nur 3er-Tische
+    if (n % 3 === 0) {
+        for (let i = 0; i < n; i += 3) sizes.push(3);
+        return sizes;
+    }
+
+    // sonst Kombination aus 4er- und 3er-Tischen, 4er bevorzugen
+    const max4 = Math.floor(n / 4);
+    for (let num4 = max4; num4 >= 0; num4--) {
+        const rest = n - num4 * 4;
+        if (rest === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            return sizes;
+        }
+        if (rest >= 3 && rest % 3 === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            for (let i = 0; i < rest; i += 3) sizes.push(3);
+            return sizes;
+        }
+    }
+
+    // Fallback, sollte praktisch nicht mehr vorkommen
+    for (let i = 0; i < n; i += 3) {
+        sizes.push(Math.min(3, n - i));
+    }
+    return sizes;
+}
+
+
+
+function updateRanking() {
+    const tbody = document.getElementById('rankingTable').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    let playersToShow = selectedPlayers.map(name => ({
+        name,
+        res1: results[name].res1,
+        res2: results[name].res2,
+        total: (results[name].res1 || 0) + (results[name].res2 || 0)
+    }));
+
+    // sortieren
+    if (currentRound === 1) {
+        playersToShow.sort((a, b) => (b.res1 || 0) - (a.res1 || 0));
+    } else {
+        playersToShow.sort((a, b) => b.total - a.total);
+    }
+
+    // Tischgrößen aus sortierter Anzahl bestimmen
+    const sizes = getTableSizes(playersToShow.length);
+
+    // Tischnummern gemäß Größenliste zuweisen
+    let idx = 0;
+    let tischNr = 1;
+    for (const size of sizes) {
+        for (let i = 0; i < size && idx < playersToShow.length; i++, idx++) {
+            playersToShow[idx].table = tischNr;
+        }
+        tischNr++;
+    }
+
+    // Tabelle rendern
+    playersToShow.forEach((p, i) => {
+        const row = document.createElement('tr');
+
+        // Prüfen ob Tischwechsel → dicke Linie
+        const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
+	row.className = isTableChange ? 'thick-line' : '';
+
+        row.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${p.name}</td>
+            <td>
+                <div class="edit-cell">
+                    ${p.res1 !== '' ? p.res1 : '-'}
+                    ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 1)">Kor.</button>` : ''}
+                </div>
+            </td>
+            <td>${p.table}</td>
+            <td>
+                <div class="edit-cell">
+                    ${p.res2 !== '' ? p.res2 : '-'}
+                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 2)">Kor.</button>` : ''}
+                </div>
+            </td>
+            <td>${currentRound === 2 ? p.total : '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+
+
+        function exportToCSV() {
+            let playersToExport = selectedPlayers.map(name => ({
+                name,
+                res1: results[name].res1 || 0,
+                res2: results[name].res2 || 0,
+                total: (results[name].res1 || 0) + (results[name].res2 || 0)
+            }));
+
+            playersToExport.sort((a, b) => b.total - a.total);
+
+            let csv = 'Rang;Name;Serie 1;Serie 2;Gesamt\n';
+            playersToExport.forEach((p, i) => {
+                csv += `${i + 1};${p.name};${p.res1};${p.res2};${p.total}\n`;
+            });
+
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+
+	    // UTF-8 BOM hinzufügen: \uFEFF
+	    const BOM = '\uFEFF';
+	    const csvWithBOM = BOM + csv;
+
+            const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Endstand_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            document.getElementById('message').textContent = `CSV-Datei Endstand_${dateStr}.csv wurde heruntergeladen!`;
+        }
+
+        function setupRound1() {
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+
+            document.getElementById('roundTitle').textContent = 'Serie 1: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 1 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('exportSection').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Zwischenstand nach Serie 1 ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+        }
+
+        document.getElementById('playerSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('currentResult').focus();
+            }
+        });
+
+        document.getElementById('currentResult').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveCurrentResult();
+            }
+        });
+    </script>
+</body>
+</html>
