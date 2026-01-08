@@ -171,6 +171,7 @@
         });
 
         function loadPlayers(text) {
+            clearPlayerList();  // oder direkt: selectedPlayers = []; updatePlayerList();			
             const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
             names.forEach(name => addPlayerToList(name));
             updateSelectedPlayers();
@@ -208,6 +209,14 @@
             document.getElementById('addPlayerSection').style.display = 'block';
             document.getElementById('newPlayerName').focus();
         }
+
+		function clearPlayerList() {
+		    selectedPlayers = [];
+		    const list = document.getElementById('playerList');  // Passe ID an deine HTML an
+		    if (list) list.innerHTML = '';
+		    updateRanking();  // Optional: Ranking aktualisieren
+		    saveState();  // localStorage persistieren [conversation_history:3]
+		}
 
         function addNewPlayer() {
             const input = document.getElementById('newPlayerName');
@@ -563,6 +572,7 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
 
 
 
