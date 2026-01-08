@@ -196,11 +196,29 @@ document.getElementById('availableFiles').addEventListener('change', async (e) =
     }
 });
 
-        function loadPlayers(text) {
-            const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
-            names.forEach(name => addPlayerToList(name));
-            updateSelectedPlayers();
-        }
+		function loadPlayers(text) {
+    // 1. Alles vorherige löschen
+    allPlayers = [];
+    selectedPlayers = [];
+    results = {};
+    
+    // Checkbox-Container leeren
+    const container = document.getElementById('playerCheckboxes');
+    container.innerHTML = '';
+    
+    // Tabelle und Status zurücksetzen
+    document.getElementById('rankingTable').querySelector('tbody').innerHTML = '';
+    document.getElementById('message').textContent = '';
+    document.getElementById('exportSection').style.display = 'none';
+    document.getElementById('startRound2').style.display = 'none';
+    
+    // 2. Neue Namen laden
+    const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
+    names.forEach(name => addPlayerToList(name));
+    
+    // 3. Auswahl und Anzeige aktualisieren
+    updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
+}
 
         function addPlayerToList(name) {
             name = name.trim();
@@ -589,3 +607,4 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
