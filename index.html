@@ -161,14 +161,18 @@
             .then(text => loadPlayers(text))
             .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));		
 
-        document.getElementById('fileInput').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => loadPlayers(ev.target.result);
-                reader.readAsText(file);
-            }
-        });
+document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            clearPlayerList();     // ⭐ FIX: Vorher leeren
+            loadPlayers(ev.target.result);
+            console.log('✅ Neue Liste geladen:', selectedPlayers.length, 'Spieler');  // ⭐ FIX: Debug
+        };
+        reader.readAsText(file);
+    }
+});
 
         function loadPlayers(text) {
             clearPlayerList();  // oder direkt: selectedPlayers = []; updatePlayerList();			
@@ -210,13 +214,13 @@
             document.getElementById('newPlayerName').focus();
         }
 
-		function clearPlayerList() {
-		    selectedPlayers = [];
-		    const list = document.getElementById('playerList');  // Passe ID an deine HTML an
-		    if (list) list.innerHTML = '';
-		    updateRanking();  // Optional: Ranking aktualisieren
-		    saveState();  // localStorage persistieren [conversation_history:3]
-		}
+function clearPlayerList() {
+    allPlayers = [];      // ⭐ FIX: Auch allPlayers leeren
+    selectedPlayers = [];
+    const container = document.getElementById('playerCheckboxes');  // ⭐ FIX: Richtige ID
+    if (container) container.innerHTML = '';                       // ⭐ FIX: Checkboxes löschen
+    updateRanking();
+}
 
         function addNewPlayer() {
             const input = document.getElementById('newPlayerName');
@@ -572,6 +576,7 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
 
 
 
