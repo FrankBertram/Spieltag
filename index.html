@@ -9,7 +9,7 @@
         .header {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 10px;
             margin-bottom: 0px;
             flex-wrap: wrap;
         }
@@ -22,14 +22,14 @@
             font-size: 2em;
         }
 		.footer {
-		    position: fixed;
-		    right: 20px;
-		    bottom: 10px;
-		    font-size: 8px;
-		    color: #666;
-		}		
-        .container { display: flex; gap: 20px; flex-wrap: wrap; }
-        .left, .middle, .right { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+			position: fixed;
+			right: 20px;
+			bottom: 10px;
+			font-size: 12px;
+			color: #666;
+		}        
+        .container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .left, .middle, .right { background: white; padding: 10px 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .left { flex: 0 0 180px; }
         .middle { flex: 0 0 180px; }
         .right { flex: 1; min-width: 400px; }
@@ -74,9 +74,25 @@
         select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         #addPlayerSection { display: none; margin-top: 10px; }
         #exportSection { display: none; margin-top: 20px; }
-	.thick-line {
-	   border-top: 3px solid #333 !important;
-	}
+		#currentResult {
+			width: 160px;      /* Schmal statt 100% */
+			display: inline-block;
+			margin-right: 10px;
+		}
+		
+		#playerSelect {
+			width: 180px;      /* Dropdown passend */
+			display: inline-block;
+		}        
+		#fileInput {  /* File-Input-Container */
+			margin-bottom: 5px;  /* Mehr Abstand unterhalb */
+			padding: 0px;
+		}
+		
+		.container {
+			margin-top: 5px;  /* Abstand oberhalb Panels */
+		}		
+		.thick-line {border-top: 3px solid #333 !important;}
     </style>
 </head>
 <body>
@@ -86,10 +102,10 @@
         <h2>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h2>
     </div>
 
-    <div>
-        <label for="fileInput">Mitspieler.txt laden (falls nicht im Ordner):</label>
-        <input type="file" id="fileInput" accept=".txt">
-    </div>
+	<div style="margin-bottom: 40px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+		<label for="fileInput">Mitspieler.txt laden (falls nicht im Ordner):</label>
+		<input type="file" id="fileInput" accept=".txt">
+	</div>
     
     <div class="container">
         <div class="left">
@@ -177,6 +193,8 @@
                 reader.readAsText(file);
             }
         });
+
+
 
 
 function loadPlayers(text) {
@@ -580,37 +598,16 @@ function updateRanking() {
                 document.getElementById('currentResult').focus();
             }
         });
-		document.getElementById('currentResult').addEventListener('keypress', function(event) {
-		    if (event.key === 'Enter') {
-		        event.preventDefault();
-		        event.stopPropagation();
-		        saveCurrentResult();
-		    }
-		});
-		// ZUSÄTZLICH: Auch auf dem Select Enter unterstützen
-		document.getElementById('playerSelect').addEventListener('keydown', function(event) {
-		    if (event.key === 'Enter') {
-		        event.preventDefault();
-		        event.stopPropagation();
-		        // Fokus auf Ergebnis-Feld und warten kurz für korrekte Auswahl
-		        setTimeout(() => {
-		            document.getElementById('currentResult').focus();
-		        }, 10);
-		    }
-		});		
-        
+
+        document.getElementById('currentResult').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveCurrentResult();
+            }
+        });
     </script>
-	<div class="footer">
-	    © 2026 by Frank Bertram (V3)
-	</div>	
+    <div class="footer">
+    © 2026 by Frank Bertram (V5)
+    </div>    
 </body>
 </html>
-
-
-
-
-
-
-
-
-
