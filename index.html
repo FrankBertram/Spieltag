@@ -80,7 +80,7 @@
     </div>
 
     <div>
-        <label for="fileInput">Mitspieler.txt laden (falls nicht im Ordner) [2]:</label>
+        <label for="fileInput">Mitspieler.txt laden (falls nicht im Ordner):</label>
         <input type="file" id="fileInput" accept=".txt">
     </div>
     
@@ -171,30 +171,6 @@
             }
         });
 
-
-
-document.getElementById('availableFiles').addEventListener('change', async (e) => {
-    const fileName = e.target.value;
-    const status = document.getElementById('playerStatus');
-    
-    if (!fileName) {
-        selectedPlayers = []; results = {};
-        status.textContent = 'Keine Liste geladen';
-        updateRanking(); 
-        return;
-    }
-    
-    try {
-        status.textContent = 'Lade ' + fileName + '...';
-        const res = await fetch(fileName);
-        const text = await res.text();
-        loadPlayers(text);
-        status.textContent = fileName + ' OK (' + selectedPlayers.length + ' Spieler)';
-        updateRanking();
-    } catch(e) {
-        status.textContent = 'Fehler: ' + fileName;
-    }
-});
 
 function loadPlayers(text) {
     // 1. Alles vorherige löschen
@@ -619,6 +595,7 @@ function updateRanking() {
     </script>
 </body>
 </html>
+
 
 
 
