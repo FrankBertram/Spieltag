@@ -1,1733 +1,630 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sintherner Skatclub - Spielzettel</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
-    body {
-      font-family: 'Open Sans', Arial, Helvetica, sans-serif;  /* Neu */
-      font-size: 14px;  /* Etwas größer für Touch (13px → 14px) */
-    /*  font-family: Arial, Helvetica, sans-serif;*/
-    /*  font-size: 13px;*/
-      margin: 15px;
-    }
-    .header {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-    .header span { font-weight: bold; }
-    table {
-      border-collapse: collapse;
-      width: 780px;
-      font-size: 14px;                                           
-    }
-    th, td {
-      border: 1px solid #444;
-      padding: 3px 4px;
-      text-align: center;
-      vertical-align: middle;
-    }
-    th {
-      background-color: #eee;
-      font-size: 13px;
-      line-height: 1.1;
-    }
-	.header label {
-	  cursor: pointer;
-	  margin-right: 10px;
-	  font-size: 10px;
-	}
-	
-	.header input[type="radio"] {
-	  margin-right: 4px;
-	}    
-    
-    .player-name {
-      width: 90px;
-      text-align: left;
-      padding-left: 6px;
-    }
-	.rechts {
-	  text-align: right !important;  /* Übersteuert th, td Standard */
-	}   
-	
-.neuer-eintrag-btn {
-  background: #FFF9C4 !important;     /* Hellgelb */
-  color: #000 !important;             /* Schwarz */
-  border: 2px solid #F57F17 !important; /* Orange-Rand */
-  padding: 6px 16px; 
-  border-radius: 6px;
-  font-size: 15px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitspieler und Ergebnisse (2 Serien)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0px;
+            flex-wrap: wrap;
+        }
+        .header img {
+            height: 50px;
+            width: auto;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+		.footer {
+			position: fixed;
+			right: 20px;
+			bottom: 10px;
+			font-size: 12px;
+			color: #666;
+		}        
+        .container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .left, .middle, .right { background: white; padding: 10px 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .left { flex: 0 0 180px; }
+        .middle { flex: 0 0 180px; }
+        .right { flex: 1; min-width: 400px; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        button { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #aaa; cursor: not-allowed; }
+        button.add-player { background: #2196F3; margin-top: 20px; }
+        button.add-player:hover { background: #0b7dda; }
+        button.edit-btn { background: #ff9800; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 5px; }
+        button.edit-btn:hover { background: #e68a00; }
+        button.export-btn { background: #2196F3; margin-top: 20px; }
+        button.export-btn:hover { background: #0b7dda; }
+        .checkbox-list { max-height: 1000px; overflow-y: auto; margin: 15px 0; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 12px;
+            transform: scale(1.3);
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+            word-wrap: break-word;
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }
+        th { background: #f2f2f2; }
+        th:nth-child(1), td:nth-child(1) { width: 40px; text-align: right; }
+        th:nth-child(2), td:nth-child(2) { width: 180px;  text-align: left; }
+        th:nth-child(3), td:nth-child(3) { text-align: right; }
+        th:nth-child(4), td:nth-child(4) { width: 20px; text-align: right; }
+        th:nth-child(5), td:nth-child(5) { text-align: right; }
+        th:nth-child(6), td:nth-child(6) { text-align: right; }
+        .edit-cell { display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
+        #message { color: green; margin-top: 10px; font-weight: bold; }
+        .round-info { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        #addPlayerSection { display: none; width: 160px; margin-top: 10px; }
+        #exportSection { display: none; margin-top: 20px; }
+		#currentResult {
+			width: 160px;      /* Schmal statt 100% */
+			display: inline-block;
+			margin-right: 10px;
+		}
+		
+		#playerSelect {
+			width: 180px;      /* Dropdown passend */
+			display: inline-block;
+		}        
+		#fileInput {  /* File-Input-Container */
+			margin-bottom: 5px;  /* Mehr Abstand unterhalb */
+			padding: 0px;
+		}
+		
+		.container {
+			margin-top: 5px;  /* Abstand oberhalb Panels */
+		}		
+		
+.file-block {
+    position: absolute;
+    top: 25px;
+    right: 20px;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 20;
 }
 
-.neuer-eintrag-btn:hover {
-  background: #FFF176 !important;     /* Helleres Gelb */
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(245,127,23,0.3);
-}
-
-.neuer-eintrag-btn:active {
-  transform: translateY(0); box-shadow: 0 2px 4px rgba(76,175,80,0.3);
-}
-	
-	
-	
-.radio-group {  /* Umbenannt von serie-group für Wiederverwendung */
-  display: flex;
-  gap: 5px;      /* Kleiner Abstand für 8 Buttons */
-  border: 2px solid #888;
-  border-radius: 6px;
-  padding: 6px 10px;
-  background: #f5f5f5;
-  box-sizing: border-box;
-  flex-wrap: wrap;  /* Bei wenig Platz umbrechen */
-  max-width: 200px;
-}
-
-.radio-label {
-  /* Dein bestehendes CSS ... */
-  white-space: nowrap;  /* Verhindert Umbruch */
-  gap: 4px;          /* ← Hier! Gap zwischen <input> und <span> */
-  font-size: 12px;      /* Etwas kleiner für 8 Optionen */
-}
-.radio-group-compact {
-  display: flex;
-  flex-direction: row;     /* ← Explizit horizontal */
-  flex-wrap: nowrap;       /* ← Kein Umbruch! */
-  gap: 1px;                /* Minimal */
-  padding: 1px 5px;
-  border: 1px solid #888;
-  border-radius: 4px;
-  background: #f5f5f5;
-  max-width: 300px;        /* Passt 8 kleine Buttons */
-  align-items: center;     /* ← Zentriert Inhalt vertikal */
-  height: 26px;            /* Fixe Höhe für Konsistenz */
-}
-
-.radio-group-compact .radio-label {
-  display: flex;
-  align-items: center;     /* ← Label + Radio zentrieren */
-  justify-content: center; /* Horizontal zentrieren */
-  line-height: 1;          /* ← Normale Zeilenhöhe */
-  padding: 1px 3px;
-  height: 100%;            /* Nutzt volle Container-Höhe */
-}
-
-.radio-label input[type="radio"] {
-  margin: 0;
-  height: 14px;
-  width: 14px;             /* ← Einheitliche Radio-Größe */
-  vertical-align: middle;  /* ← Fallback */
-}
-
-
-
-
-.radio-label:hover {
-  background: #e8e8e8;
-  /* Kein padding/margin mehr hier! */
-}
-
-    .gew-verl {
-      font-size: 9px;
-      line-height: 1;
-    }
-    
-    .edit-btn {
-      font-size: 10px;
-      padding: 1px 1px;
-      cursor: pointer;
-      background: orange;
-      color: white;
-      border: 1px solid #888;
-    }    
-    .spitzen-btn {
-      padding: 12px 20px;
-      font-size: 15px;
-      border-radius: 6px;
-      border: 1px solid #888;
-      cursor: pointer;
-      background: #f5f5f5;
-      min-width: 200px;  
-    }
-
-    .spitzen-btn.active {
-      background: #2196F3;
-      color: white;
-      font-weight: bold;
-    }
-    
-    .spielwert-spalte {
-	  min-width: 30px;       /* Mindestbreite für Punkte-Spalten */
-	  width: 30px;           /* Ideale Breite */
-	  text-align: right;
-	}
-
-    .spitze-btn {
-      padding: 8px 14px;
-      font-size: 15px;
-      border-radius: 6px;
-      border: 1px solid #888;
-      background: #f5f5f5;
-      cursor: pointer;
-      min-width: 50px;
-    }
-
-    .spitze-btn.active {
-      background: #2196F3;
-      color: white;
-      font-weight: bold;
-    }
-
-    .gw-btn {
-      display: inline-block;
-      margin-right: 5px;
-      font-size: 15px;
-      padding: 2px 10px;
-      cursor: pointer;
-      border-radius: 6px;
-      height: 80px;
-      min-width: 95px;
-      box-sizing: border-box;
-      border: 1px solid #888;
-      background-color: #fff;
-      color: #000;
-      font-weight: normal;
-      line-height: normal;
-      width: auto;
-      overflow: hidden;
-    }
-
-    .gw-btn.active {
-      background: #4CAF50;
-      color: #fff;
-      font-weight: bold;
-    }
-
-    .result-row td {
-      background-color: #f8f8f8;
-      font-weight: bold;
-    }
-    .money-row {
-      display: flex;
-      gap: 20px;
-      justify-content: flex-start;
-      margin: 8px 0;
-    }
-    .money-row input {
-      width: 90px;
-      text-align: right;
-    }
-    .signature {
-      margin-top: 30px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-    
-    .vertical {
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      white-space: nowrap;
-    }
-
-	.vertical-left {
-	  writing-mode: vertical-rl;     /* Von unten nach oben */
-	  text-orientation: mixed;       /* Buchstaben aufrecht */
-		  transform: rotate(180deg);
-	  /* font-size: 11px; 	
-	  font-weight: 400;*/
-	  white-space: nowrap;
-	  vertical-align: bottom;        /* Unten in Zelle */
-	  text-align: left !important;
-	  justify-content: flex-start;   /* Start der "Inline-Richtung" (links) */
-	  align-items: flex-start;       /* Block-Start (linksbündig) */
-	}    
-    
-
-.unten {
-  vertical-align: bottom !important;
-  text-align: center;  /* Oder left */
-  padding-bottom: 2px;  /* Extra Abstand zum Rand */
-}
-
-    input[type="text"] {
-      border: none;
-      border-bottom: 1px solid #333;
-      background: transparent;
-    }
-    #skat-table thead th {
-      position: sticky;
-      background: #f0f0f0;
-      border-bottom: 2px solid #ccc;
-      text-align: center;
-	  font-size: 11px; 	
-	  font-weight: 400;
-	  color: black;
-      padding: 4px 6px;
-      z-index: 2;
-    }
-
-    #skat-table thead tr:nth-child(1) th {
-      top: 1px;
-      z-index: 3;
-    }
-
-    #skat-table thead tr:nth-child(2) th {
-      top: 35px;
-      z-index: 2;
-    }
-
-    #skat-table tfoot {
-      position: static; /* sticky;*/
-      bottom: auto; /*0;*/
-      z-index: auto; /*3;*/
-    }
-    
-    
-
-    #skat-table tfoot td {
-      background: #f0f0f0;
-      border-top: 2px solid #ccc;
-      padding: 4px 6px;
-      text-align: center;
-    }
-
-  </style>
+.header {
+    position: relative;  /* Für absolute Positionierung */
+    padding-right: 250px;  /* Platz für File-Block */
+}		
+		.thick-line {border-top: 3px solid #333 !important;}
+    </style>
 </head>
 <body>
 
-<div class="header">
-  <!-- Zeile 1: Logo + Verein -->
-  <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 0px;">
-    <img src="Skat.png" alt="Skat-Logo" style="height: 40px;">
-    <span style="font-size:20px; font-weight: bold;">1. Sintherner Skatclub 1992 e.V.</span>
-  </div>
-  <br>
-  
-  <!-- Zeile 2: Auswahlbuttons -->
-  <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-    <span>Serie:</span>
-    <div class="radio-group radio-group-compact">
-      <label class="radio-label"><input type="radio" name="serie" value="1" checked>1.</label>
-      <label class="radio-label"><input type="radio" name="serie" value="2">2.</label>
+    <div class="header">
+        <img src="Skat.png" alt="Skat-Logo">
+        <h2>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h2>
     </div>
+
+<div id="fileSection" class="file-block">
+    <label for="fileInput">Mitspieler:</label>
+    <input type="file" id="fileInput" accept=".txt">
+</div>
     
-    <span>Tisch:</span>
-    <div class="radio-group radio-group-compact">
-      <label class="radio-label"><input type="radio" name="tisch" value="1" checked>1</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="2">2</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="3">3</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="4">4</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="5">5</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="6">6</label>
-      <label class="radio-label"><input type="radio" name="tisch" value="7">7</label>
+    <div class="container">
+        <div class="left">
+            <h3>Mitspieler wählen</h3>
+            <div class="checkbox-list" id="playerCheckboxes"></div>
+            
+            <button class="add-player" onclick="showAddPlayer()">Gast hinzufügen</button>
+            
+            <div id="addPlayerSection">
+                <input type="text" id="newPlayerName" placeholder="Name eingeben">
+                <button onclick="addNewPlayer()">Hinzufügen</button>
+            </div>
+        </div>
+        
+        <div class="middle">
+            <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
+            <div class="round-info" id="roundInfo">
+                Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
+            </div>
+            
+            <select id="playerSelect">
+                <option value="">-- Spieler wählen --</option>
+            </select>
+            
+            <input type="number" id="currentResult" placeholder="Ergebnis eintragen">
+            
+            <button onclick="saveCurrentResult()">Speichern und nächsten wählen</button>
+            
+            <button id="startRound2" onclick="startRound2()" style="display:none; background:#ff9800;">
+                Serie 2 starten
+            </button>
+            
+            <p id="message"></p>
+
+            <div id="exportSection">
+                <button class="export-btn" onclick="exportToCSV()">Endstand als CSV exportieren</button>
+            </div>
+        </div>
+        
+        <div class="right">
+            <h3 id="rankingTitle">Zwischenstand nach Serie 1</h3>
+            <table id="rankingTable">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Name</th>
+                        <th>Serie 1</th>
+			<th>T.</th>
+                        <th>Serie 2</th>
+                        <th>Gesamt</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
-    <!-- NEU: 36er/48er Auswahl -->
-    <span>Spiele:</span>
-    <div class="radio-group radio-group-compact">
-      <label class="radio-label"><input type="radio" name="karten" value="36" checked>36</label>
-      <label class="radio-label"><input type="radio" name="karten" value="48">48</label>
+
+    <script>
+        let allPlayers = [];
+        let selectedPlayers = [];
+        let results = {};
+        let currentRound = 1;
+        let editingPlayer = null;
+        let editingSeries = null;
+
+	const datum = new Date();
+        const datumText = datum.toLocaleDateString('de-DE', {
+	        day: '2-digit',
+        	month: '2-digit',
+	        year: 'numeric'
+	});
+      	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
+
+        fetch('Mitspieler.txt')
+            .then(r => r.ok ? r.text() : Promise.reject())
+            .then(text => loadPlayers(text))
+            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+
+
+        document.getElementById('fileInput').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => loadPlayers(ev.target.result);
+                reader.readAsText(file);
+            }
+        });
+
+
+
+
+function loadPlayers(text) {
+    // 1. Alles vorherige löschen
+    allPlayers = [];
+    selectedPlayers = [];
+    results = {};
+    
+    // Checkbox-Container leeren
+    const container = document.getElementById('playerCheckboxes');
+    container.innerHTML = '';
+    
+    // Tabelle und Status zurücksetzen
+    document.getElementById('rankingTable').querySelector('tbody').innerHTML = '';
+    document.getElementById('message').textContent = '';
+    document.getElementById('exportSection').style.display = 'none';
+    document.getElementById('startRound2').style.display = 'none';
+    
+    // 2. Neue Namen laden
+    const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
+    names.forEach(name => addPlayerToList(name));
+    
+    // 3. Auswahl und Anzeige aktualisieren
+    updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
+}
+
+        function addPlayerToList(name) {
+            name = name.trim();
+            if (!name) return;
+            const normalized = name.toLowerCase();
+            if (allPlayers.some(p => p.toLowerCase() === normalized)) return;
+
+            allPlayers.push(name);
+            results[name] = { res1: '', res2: '' };
+
+            const container = document.getElementById('playerCheckboxes');
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.id = 'cb_' + name;
+            cb.checked = true;
+            cb.onchange = updateSelectedPlayers;
+
+            const label = document.createElement('label');
+            label.htmlFor = cb.id;
+            label.textContent = name;
+
+            div.appendChild(cb);
+            div.appendChild(label);
+            container.appendChild(div);
+        }
+
+        function showAddPlayer() {
+            document.getElementById('addPlayerSection').style.display = 'block';
+            document.getElementById('newPlayerName').focus();
+        }
+
+        function addNewPlayer() {
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+
+            addPlayerToList(name);
+            input.value = '';
+            document.getElementById('addPlayerSection').style.display = 'none';
+
+            updateSelectedPlayers();
+            updateRanking();
+            document.getElementById('message').textContent = `${name} wurde hinzugefügt und ist ausgewählt!`;
+        }
+
+        document.getElementById('newPlayerName').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNewPlayer();
+            }
+        });
+
+        function updateSelectedPlayers() {
+            selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            resetGameIfNeeded();
+            updatePlayerSelect();
+            updateRanking();
+        }
+
+        function resetGameIfNeeded() {
+            const newSelected = new Set(selectedPlayers);
+            Object.keys(results).forEach(name => {
+                if (!newSelected.has(name)) {
+                    results[name] = { res1: '', res2: '' };
+                }
+            });
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+            document.getElementById('exportSection').style.display = 'none';
+            setupRound1();
+        }
+
+        // NEU: Sortierung des Dropdowns in Serie 2 nach Serie-1-Ergebnis
+        function updatePlayerSelect(preselectNext = false) {
+            const select = document.getElementById('playerSelect');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Spieler wählen --</option>';
+
+            let candidates = [];
+
+            selectedPlayers.forEach(player => {
+                let needsInput = false;
+
+                if (currentRound === 1 && results[player].res1 === '') {
+                    needsInput = true;
+                } else if (currentRound === 2 && results[player].res2 === '') {
+                    needsInput = true;
+                }
+
+                if (editingPlayer === player) {
+                    needsInput = true;
+                }
+
+                if (needsInput) {
+                    candidates.push({
+                        name: player,
+                        score: parseFloat(results[player].res1) || 0
+                    });
+                }
+            });
+
+            // In Serie 2 nach Serie-1-Punkten absteigend sortieren
+            if (currentRound === 2) {
+                candidates.sort((a, b) => b.score - a.score);
+            } else {
+                // In Serie 1 alphabetisch (oder wie bisher)
+                candidates.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            candidates.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+
+            if (preselectNext && candidates.length > 0) {
+                let nextPlayer = null;
+                if (currentValue && candidates.find(c => c.name === currentValue)) {
+                    const index = candidates.findIndex(c => c.name === currentValue);
+                    nextPlayer = candidates[index + 1] || candidates[0];
+                } else {
+                    nextPlayer = candidates[0];
+                }
+                if (nextPlayer) {
+                    select.value = nextPlayer.name;
+                    document.getElementById('currentResult').focus();
+                }
+            } else if (editingPlayer) {
+                select.value = editingPlayer;
+                document.getElementById('currentResult').focus();
+            }
+
+            checkRoundComplete();
+        }
+
+        function checkRoundComplete() {
+            if (currentRound === 1) {
+                const allHaveRes1 = selectedPlayers.every(p => results[p].res1 !== '');
+                document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
+            } else if (currentRound === 2) {
+                const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
+                document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
+            }
+        }
+
+        function prepareEdit(player, series) {
+            editingPlayer = player;
+            editingSeries = series;
+
+            const value = series === 1 ? results[player].res1 : results[player].res2;
+            
+
+            document.getElementById('currentResult').value = value;
+            document.getElementById('currentResult').focus();
+
+            updatePlayerSelect();
+
+            document.getElementById('message').textContent = 
+                `Korrigiere Ergebnis Serie ${series} für ${player} – neuen Wert eingeben und speichern.`;
+        }
+
+        function saveCurrentResult() {
+            const selected = document.getElementById('playerSelect').value;
+            if (!selected) {
+                alert('Bitte einen Spieler wählen!');
+                return;
+            }
+            const value = document.getElementById('currentResult').value;
+            if (value === '') {
+                alert('Bitte ein Ergebnis eingeben!');
+                return;
+            }
+
+            const numValue = parseFloat(value);
+
+            if (currentRound === 1 || editingSeries === 1) {
+                results[selected].res1 = numValue;
+            } else if (currentRound === 2 || editingSeries === 2) {
+                results[selected].res2 = numValue;
+            }
+
+            document.getElementById('message').textContent = 
+                `Ergebnis Serie ${editingSeries || currentRound} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
+
+            document.getElementById('currentResult').value = '';
+            const wasEditing = editingPlayer !== null;
+            editingPlayer = null;
+            editingSeries = null;
+
+            updatePlayerSelect(!wasEditing);
+            updateRanking();
+            checkRoundComplete();
+        }
+
+        function startRound2() {
+            currentRound = 2;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+            document.getElementById('roundTitle').textContent = 'Serie 2: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Jetzt das Ergebnis der zweiten Serie für jeden Spieler eintragen.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 2 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+            checkRoundComplete();
+        }
+
+function getTableSizes(n) {
+    const sizes = [];
+    if (n < 3) return sizes;
+
+    // Wenn durch 4 teilbar → nur 4er-Tische
+    if (n % 4 === 0) {
+        for (let i = 0; i < n; i += 4) sizes.push(4);
+        return sizes;
+    }
+
+    // Wenn durch 3 teilbar, aber NICHT durch 4 → nur 3er-Tische
+    if (n % 3 === 0) {
+        for (let i = 0; i < n; i += 3) sizes.push(3);
+        return sizes;
+    }
+
+    // sonst Kombination aus 4er- und 3er-Tischen, 4er bevorzugen
+    const max4 = Math.floor(n / 4);
+    for (let num4 = max4; num4 >= 0; num4--) {
+        const rest = n - num4 * 4;
+        if (rest === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            return sizes;
+        }
+        if (rest >= 3 && rest % 3 === 0) {
+            for (let i = 0; i < num4; i++) sizes.push(4);
+            for (let i = 0; i < rest; i += 3) sizes.push(3);
+            return sizes;
+        }
+    }
+
+    // Fallback, sollte praktisch nicht mehr vorkommen
+    for (let i = 0; i < n; i += 3) {
+        sizes.push(Math.min(3, n - i));
+    }
+    return sizes;
+}
+
+
+
+function updateRanking() {
+    const tbody = document.getElementById('rankingTable').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    let playersToShow = selectedPlayers.map(name => ({
+        name,
+        res1: results[name].res1,
+        res2: results[name].res2,
+        total: (results[name].res1 || 0) + (results[name].res2 || 0)
+    }));
+
+    // sortieren
+    if (currentRound === 1) {
+        playersToShow.sort((a, b) => (b.res1 || 0) - (a.res1 || 0));
+    } else {
+        playersToShow.sort((a, b) => b.total - a.total);
+    }
+
+    // Tischgrößen aus sortierter Anzahl bestimmen
+    const sizes = getTableSizes(playersToShow.length);
+
+    // Tischnummern gemäß Größenliste zuweisen
+    let idx = 0;
+    let tischNr = 1;
+    for (const size of sizes) {
+        for (let i = 0; i < size && idx < playersToShow.length; i++, idx++) {
+            playersToShow[idx].table = tischNr;
+        }
+        tischNr++;
+    }
+
+    // Tabelle rendern
+    playersToShow.forEach((p, i) => {
+        const row = document.createElement('tr');
+
+        // Prüfen ob Tischwechsel → dicke Linie
+        const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
+        row.className = isTableChange ? 'thick-line' : '';
+
+        row.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${p.name}</td>
+            <td>
+                <div class="edit-cell">
+                    ${p.res1 !== '' ? p.res1 : '-'}
+                    ${currentRound === 2 ? '' : (p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 1)">Kor.</button>` : '')}
+                </div>
+            </td>
+            <td>${p.table}</td>
+            <td>
+                <div class="edit-cell">
+                    ${p.res2 !== '' ? p.res2 : '-'}
+                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 2)">Kor.</button>` : ''}
+                </div>
+            </td>
+            <td>${currentRound === 2 ? p.total : '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+
+
+
+        function exportToCSV() {
+            let playersToExport = selectedPlayers.map(name => ({
+                name,
+                res1: results[name].res1 || 0,
+                res2: results[name].res2 || 0,
+                total: (results[name].res1 || 0) + (results[name].res2 || 0)
+            }));
+
+            playersToExport.sort((a, b) => b.total - a.total);
+
+            let csv = 'Rang;Name;Serie 1;Serie 2;Gesamt\n';
+            playersToExport.forEach((p, i) => {
+                csv += `${i + 1};${p.name};${p.res1};${p.res2};${p.total}\n`;
+            });
+
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+
+	    // UTF-8 BOM hinzufügen: \uFEFF
+	    const BOM = '\uFEFF';
+	    const csvWithBOM = BOM + csv;
+
+            const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Endstand_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            document.getElementById('message').textContent = `CSV-Datei Endstand_${dateStr}.csv wurde heruntergeladen!`;
+        }
+
+        function setupRound1() {
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+	    const count = selectedPlayers.length;
+
+            document.getElementById('roundTitle').textContent = 'Serie 1: Ergebnis eintragen';
+            document.getElementById('roundInfo').textContent = 
+                'Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.';
+            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 1 eintragen';
+            document.getElementById('startRound2').style.display = 'none';
+            document.getElementById('exportSection').style.display = 'none';
+            document.getElementById('rankingTitle').textContent = 'Zwischenstand nach Serie 1 ('+count+' Mitspieler)';
+            updatePlayerSelect(true);
+            updateRanking();
+        }
+
+        document.getElementById('playerSelect').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('currentResult').focus();
+            }
+        });
+
+        document.getElementById('currentResult').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveCurrentResult();
+            }
+        });
+    </script>
+    <div class="footer">
+    © 2026 by Frank Bertram (V5)
     </div>    
-  </div>
-</div>
-
-
-<div id="spieler-buttons-container" style="margin-bottom:10px; display:flex; gap:10px;">
-
-  <div id="player-btn-container-1"></div>
-  <div id="player-btn-container-2"></div>
-  <div id="player-btn-container-3"></div>
-  <div id="player-btn-container-4"></div>
-  <div id="csv-export-container"></div> 
-  
-</div>
-
-<div class="table-wrapper" style="max-height:600px; overflow-y:auto; overflow-x:auto; width:100%; max-width:100%; -webkit-overflow-scrolling:touch;">
-  <table id="skat-table">
-  <thead>
-    <tr>
-      <th rowspan="2" class="vertical-left">Lfd. Nr. Spiel</th>
-      <th rowspan="2" class="unten">9 <br>10<br>11<br>12<br>23<br>24<br>E</th>
-      <th rowspan="2" class="vertical-left">mit Spitzen</th>
-      <th rowspan="2" class="vertical-left">ohne Spitzen</th>
-      <th colspan="6">Gewinnstufen</th>
-      <th colspan="2">Spiel-<br>werte</th>
-      <th colspan="3" class="player-name1 player-name">Name (LF)</th>
-      <th colspan="3" class="player-name2 player-name">Name</th>
-      <th colspan="3" class="player-name3 player-name">Name</th>
-      <th colspan="3" class="player-name4 player-name">Name</th>
-      <th rowspan="2" class="vertical-left">Eingepasst</th>
-      <th></th>
-    </tr>
-    <tr>
-      <th class="vertical-left">Hand</th>
-      <th class="vertical-left">Schneider</th>
-      <th class="vertical-left">Schn. ang.</th>
-      <th class="vertical-left">Schwarz</th>
-      <th class="vertical-left">Schw. ang.</th>
-      <th class="vertical-left">Offen</th>
-      <th class="spielwert-spalte">+</th>
-      <th class="spielwert-spalte">-</th>
-      <th class="unten">Platz 1</th>
-      <th class="vertical-left">gewonnen</th>
-      <th class="vertical-left">verloren</th>
-      <th class="unten">Platz 2</th>
-      <th class="vertical-left">gewonnen</th>
-      <th class="vertical-left">verloren</th>
-      <th class="unten">Platz 3</th>
-      <th class="vertical-left">gewonnen</th>
-      <th class="vertical-left">verloren</th>
-      <th class="unten">Platz 4</th>
-      <th class="vertical-left">gewonnen</th>
-      <th class="vertical-left">verloren</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody id="game-rows">
-  </tbody>
-  <tfoot>
-	<tr>
-	  <th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight: 400;">Spielpunkte:</th>
-	  <td class="rechts" id="sum-p1">0</td>           <!-- Punkte Platz 1 -->
-	  <td id="gew-p1">0</td>           <!-- Gewinne Platz 1 -->
-	  <td id="verl-p1">0</td>          <!-- Verluste Platz 1 -->
-	  <td class="rechts" id="sum-p2">0</td>
-	  <td id="gew-p2">0</td>
-	  <td id="verl-p2">0</td>
-	  <td class="rechts" id="sum-p3">0</td>
-	  <td id="gew-p3">0</td>
-	  <td id="verl-p3">0</td>
-	  <td class="rechts" id="sum-p4">0</td>
-	  <td id="gew-p4">0</td>
-	  <td id="verl-p4">0</td>
-	  <td id="sum-eingepasst">0</td>   <!-- Eingepasst-Zähler -->
-	  <td></td>
-	</tr>
-    <tr>
-      <th colspan="12" style="text-align:left; padding: 0 15px; font-size: 14px; background:#f0f0f0;font-weight: 400;">+ (gewonnene Spiele - verlorene Spiele) x 50:</th>
-      <td class="rechts" id="bonus-p1">0</td><td id="bogew-p1"></td><td></td>
-      <td class="rechts" id="bonus-p2">0</td><td id="bogew-p2"></td><td></td>
-      <td class="rechts" id="bonus-p3">0</td><td id="bogew-p3"></td><td></td>
-      <td class="rechts" id="bonus-p4">0</td><td id="bogew-p4"></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight: 400;">+ verlorene Spiele der Gegenspieler x 30:</th>
-      <td class="rechts" id="bonus-g1">0</td><td id="bogew-g1"></td><td></td>
-      <td class="rechts" id="bonus-g2">0</td><td id="bogew-g2"></td><td></td>
-      <td class="rechts" id="bonus-g3">0</td><td id="bogew-g3"></td><td></td>
-      <td class="rechts" id="bonus-g4">0</td><td id="bogew-g4"></td><td></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight:bold;">Gesamtpunkte:</th>
-      <td class="rechts" id="gesamt-p1">0</td><td></td><td></td>
-      <td class="rechts" id="gesamt-p2">0</td><td></td><td></td>
-      <td class="rechts" id="gesamt-p3">0</td><td></td><td></td>
-      <td class="rechts" id="gesamt-p4">0</td><td></td><td></td>
-      <td></td><td></td>
-    </tr>
-  </tfoot>
-</table>
-</div>
-
-<dialog id="spiel-dialog" style="padding:20px; border-radius:8px; width:625px; max-width:90%; font-size:15px;">
-  <form method="dialog" id="spiel-form" style="display:flex; flex-direction:column; gap:10px;">
-    <h3 style="margin:0 0 5px 0; text-align:center;">Spiel eintragen:  <span id="spielnummer-display"></span></h3>
-
-    <div id="player-buttons" style="margin-bottom:5px;"></div>
-    
-    <div id="grundwert-buttons" style="display:flex; flex-wrap:wrap; gap:8px;">
-      <button type="button" onclick="setGrundwert('Grand')" style="padding:12px 18px; font-size:16px; min-width:80px; border-radius:6px;">Grand</button>
-      <button type="button" onclick="setGrundwert('♣')" style="padding:12px 18px; font-size:48px; min-width:80px; border-radius:6px;">♣</button>
-      <button type="button" onclick="setGrundwert('♠')" style="padding:12px 18px; font-size:48px; height:80px; min-width:80px; border-radius:6px;">♠</button>
-      <button type="button" onclick="setGrundwert('♥')" style="padding:12px 18px; color:red;font-size:48px; min-width:80px; border-radius:6px;">♥</button>
-      <button type="button" onclick="setGrundwert('♦')" style="padding:12px 18px; color:red; font-size:48px; min-width:80px; border-radius:6px;">♦</button>
-      <button type="button" onclick="setGrundwert('Null')" style="padding:12px 18px; font-size:16px; min-width:80px; border-radius:6px;">Null</button>
-      <button type="button" onclick="setGrundwert('Pass')" style="padding:12px 18px; font-size:16px; min-width:80px; border-radius:6px;">Pass</button>
-    </div>
-   
-    <div id="spitzen-buttons" style="display:flex; gap:10px; margin-top:5px;height: 80px">
-      <button type="button" onclick="setSpitzen(true)" class="spitzen-btn">
-        mit Spitzen
-      </button>
-      <button type="button" onclick="setSpitzen(false)" class="spitzen-btn">
-        ohne Spitzen
-      </button>
-    </div>
-    <div id="spitzen-anzahl" style="display:none; flex-wrap:wrap; gap:6px; margin-top:5px;height: 80px"></div>
-    <div id="gewinnstufen-buttons" style="display:flex; flex-wrap:wrap; gap:2px;min-height:80px;"></div>
-
-
-<div style="margin-top:10px; display: none;">
-  <input type="text" id="grundwert" style="padding:8px; width:100%; text-align:center; font-weight:bold;" readonly placeholder="Bitte Spielart wählen">
-</div>
-<div style="display:flex; gap:10px; margin-top:8px; display: none;">
-  <label style="flex:1; display:flex; flex-direction:column; text-align:center;">
-    Mit Spitzen
-    <input type="number" id="mitSpitzen" min="0" max="11" style="padding:6px; text-align:center;">
-  </label>
-  <label style="flex:1; display:flex; flex-direction:column; text-align:center;">
-    Ohne Spitzen
-    <input type="number" id="ohneSpitzen" min="0" max="11" style="padding:6px; text-align:center;">
-  </label>
-</div>
-
-    <!-- ── NEUE BUTTONS ─────────────────────────────────────────────── -->
-    <div style="display:flex; gap:16px; margin-top:20px; justify-content:center;">
-      <button type="button" id="btn-gewonnen" 
-              style="padding:16px 40px; font-size:20px; font-weight:bold; border:none; border-radius:8px; 
-                     background:#4CAF50; color:white; cursor:pointer; min-width:180px;">
-        Gewonnen
-      </button>    
-      <button type="button" id="btn-verloren" 
-              style="padding:16px 40px; font-size:20px; font-weight:bold; border:none; border-radius:8px; 
-                     background:#e53935; color:white; cursor:pointer; min-width:180px;">
-        Verloren
-      </button>
-
-    </div>
-  </form>
-</dialog>
-
-
-<script>
-let spielDaten = [];  // Leer starten
-let scale = 1.0;
-
-
-// Direkt nach der Deklaration:
-const kartenDefault = 36;
-spielDaten = Array(kartenDefault).fill(null).map((_, i) => ({
-  nr: i + 1,
-  grundwert: "", hand: "", schneider: "", schwarz: "", 
-  schneiderang: "", schwarzang: "", offen: "",
-  mitSpitzen: "", ohneSpitzen: "", spielwert: "",
-  pluswert: "", minuswert: "",
-  p1_punkte: "", p1_gew: "", p1_verl: "",
-  p2_punkte: "", p2_gew: "", p2_verl: "",
-  p3_punkte: "", p3_gew: "", p3_verl: "",
-  p4_punkte: "", p4_gew: "", p4_verl: "",
-  p1_delta: "", p2_delta: "", p3_delta: "", p4_delta: "",
-  eingepasst: "",
-  spieler: ""
-}));
-
-function setStickyByScale(scale) {
-  const tfoot = document.querySelector('#skat-table tfoot');
-  if (scale === 1.0) {
-    tfoot.style.position = 'sticky';
-    tfoot.style.bottom = '0';
-    tfoot.style.zIndex = '3';
-  } else {
-    tfoot.style.position = 'static';
-    tfoot.style.bottom = '';
-    tfoot.style.zIndex = '';
-  }
-}
-
-function setTableHeight() {
-  const screenH = screen.height;
-  const screenW = screen.width;
-  const wrapper = document.querySelector('.table-wrapper');
-  
-  let maxH;
-  let maxW;
-  if (screenH >= 1200) maxH = '1100px';      // Desktop
-  else if (screenH >= 900) maxH = '70vh';  // Tablet Landscape
-  else if (screenH >= 700) maxH = '60vh';  // Portrait
-  else maxH = '500px';                     // Klein
-  maxH = screenH - 300;
-  maxW = screenW + 100;
-  
-  wrapper.style.maxHeight = maxH + 'px';
-  wrapper.style.height = maxH + 'px';  // Optional: Feste Höhe
-  //wrapper.style.minWidth = maxW + 'px';
-  //wrapper.style.width = maxW + 'px';  // Optional: Feste Höhe
-}
-
-function autoScalePage() {
-  const width = screen.width;
-
-  if (width >= 810) scale = 1.0;
-  else scale = width / 825;
-
-  const comp = 100 / scale;
-  const html = document.documentElement;
-  html.style.transform = `scale(${scale})`;
-  html.style.transformOrigin = '0 0';
-  html.style.width = comp + '%';
-  html.style.height = comp + '%';
-  html.style.overflow = 'hidden';
-  
-  setStickyByScale(scale);
-  setTableHeight();
-}
-window.addEventListener('load', autoScalePage);
-window.addEventListener('resize', autoScalePage);
-window.addEventListener('orientationchange', autoScalePage);    
-
-function fillTable() {
-  const tbody = document.getElementById("game-rows");
-  tbody.innerHTML = "";
-  
-  console.log("Test-Tabelle: " + spielDaten.length + " Zeilen");
-
-  let buttonInserted = false;
-
-  // Laufende Zähler und Summen
-  let punkteSummen     = [0, 0, 0, 0];
-  let gewinnZaehler    = [0, 0, 0, 0];
-  let verlustZaehler   = [0, 0, 0, 0];
-  let eingepasstZaehler = 0;
-
-  spielDaten.forEach((data, i) => {
-    const isEmpty = !data.grundwert && !data.hand && !data.schneider &&
-                    !data.schneiderang && !data.schwarz && !data.schwarzang && !data.offen;
-
-    if (isEmpty && !buttonInserted) {
-      createButtonRow(i);
-      buttonInserted = true;
-    }
-
-    let istEingepasst = false;
-    let istGueltigesSpiel = false;
-
-    if (!isEmpty) {
-      if (data.grundwert === "E" || data.grundwert === "Pass") {
-        istEingepasst = true;
-        eingepasstZaehler++;
-      }
-      else if (data.spieler && data.gewonnen !== null && data.gewonnen !== undefined) {
-        istGueltigesSpiel = true;
-
-        const pos = data.spieler - 1;
-
-        const delta = parseInt(data[`p${data.spieler}_delta`]) || 0;
-        punkteSummen[pos] += delta;
-
-        if (data.gewonnen === true) {
-          gewinnZaehler[pos]++;
-        } else if (data.gewonnen === false) {
-          verlustZaehler[pos]++;
-        }
-      }
-    }
-
-    // Anzeigewerte für die Datenzeilen
-    let p1Punkte = "", p1Gew = "", p1Verl = "";
-    let p2Punkte = "", p2Gew = "", p2Verl = "";
-    let p3Punkte = "", p3Gew = "", p3Verl = "";
-    let p4Punkte = "", p4Gew = "", p4Verl = "";
-    let eingepasstAnzeige = "";
-
-    if (!isEmpty) {
-      if (istEingepasst) {
-        eingepasstAnzeige = eingepasstZaehler;
-      }
-
-      if (istGueltigesSpiel && data.spieler) {
-        const pos = data.spieler;
-
-        if (pos === 1) {
-          p1Punkte = punkteSummen[0];
-          p1Gew    = data.gewonnen === true  ? gewinnZaehler[0]  : "";
-          p1Verl   = data.gewonnen === false ? verlustZaehler[0] : "";
-        } else if (pos === 2) {
-          p2Punkte = punkteSummen[1];
-          p2Gew    = data.gewonnen === true  ? gewinnZaehler[1]  : "";
-          p2Verl   = data.gewonnen === false ? verlustZaehler[1] : "";
-        } else if (pos === 3) {
-          p3Punkte = punkteSummen[2];
-          p3Gew    = data.gewonnen === true  ? gewinnZaehler[2]  : "";
-          p3Verl   = data.gewonnen === false ? verlustZaehler[2] : "";
-        } else if (pos === 4) {
-          p4Punkte = punkteSummen[3];
-          p4Gew    = data.gewonnen === true  ? gewinnZaehler[3]  : "";
-          p4Verl   = data.gewonnen === false ? verlustZaehler[3] : "";
-        }
-      }
-    }
-
-    const row = document.createElement("tr");
-    row.classList.add("data-row");
-    row.dataset.nr = data.nr;
-
-    if (istEingepasst) {
-      row.style.backgroundColor = "#ddd";
-      row.style.fontStyle = "italic";
-    }
-
-    row.innerHTML = `
-      <td>${data.nr}</td>
-      <td>${data.grundwert || ""}</td>
-      <td>${data.mitSpitzen || ""}</td>
-      <td>${data.ohneSpitzen || ""}</td>
-      <td>${data.hand || ""}</td>
-      <td>${data.schneider || ""}</td>
-      <td>${data.schneiderang || ""}</td>
-      <td>${data.schwarz || ""}</td>
-      <td>${data.schwarzang || ""}</td>
-      <td>${data.offen || ""}</td>
-      <td>${data.pluswert || ""}</td>
-      <td>${data.minuswert ? `<span style="color:red;">${data.minuswert}</span>` : ""}</td>
-
-      <td class="rechts">${p1Punkte}</td>
-      <td>${p1Gew}</td>
-      <td>${p1Verl}</td>
-
-      <td class="rechts">${p2Punkte}</td>
-      <td>${p2Gew}</td>
-      <td>${p2Verl}</td>
-
-      <td class="rechts">${p3Punkte}</td>
-      <td>${p3Gew}</td>
-      <td>${p3Verl}</td>
-
-      <td class="rechts">${p4Punkte}</td>
-      <td>${p4Gew}</td>
-      <td>${p4Verl}</td>
-
-      <td>${eingepasstAnzeige}</td>
-      <td>
-        ${isEmpty ? "" : `<button class="edit-btn" onclick="openNewModal(${data.nr-1})">Edit</button>`}
-      </td>
-    `;
-
-    // Dein Streifen-Styling
-    const colMap = [13, 16, 19, 22];
-    const mod = (data.nr - 1) % 4;
-    row.querySelector(`td:nth-child(${colMap[mod]})`).style.background =
-      "repeating-linear-gradient(-45deg, #ddd, #ddd 3px, #fff 3px, #fff 6px)";
-
-    tbody.appendChild(row);
-  });
-
-  // ────────────────────────────────────────────────────────────────
-  // Gesamtsummen in die tfoot-Zeile "Spielpunkte:" schreiben
-  // ────────────────────────────────────────────────────────────────
-
-  document.getElementById("sum-p1").textContent = punkteSummen[0] || 0;
-  document.getElementById("sum-p2").textContent = punkteSummen[1] || 0;
-  document.getElementById("sum-p3").textContent = punkteSummen[2] || 0;
-  document.getElementById("sum-p4").textContent = punkteSummen[3] || 0;
-
-  document.getElementById("gew-p1").textContent = gewinnZaehler[0] || 0;
-  document.getElementById("gew-p2").textContent = gewinnZaehler[1] || 0;
-  document.getElementById("gew-p3").textContent = gewinnZaehler[2] || 0;
-  document.getElementById("gew-p4").textContent = gewinnZaehler[3] || 0;
-
-  document.getElementById("verl-p1").textContent = verlustZaehler[0] || 0;
-  document.getElementById("verl-p2").textContent = verlustZaehler[1] || 0;
-  document.getElementById("verl-p3").textContent = verlustZaehler[2] || 0;
-  document.getElementById("verl-p4").textContent = verlustZaehler[3] || 0;
-
-  document.getElementById("sum-eingepasst").textContent = eingepasstZaehler || 0;
-  
-  // Bonus-Zeile: (gew - verl) × 50
-  const bonusP1 = (gewinnZaehler[0] - verlustZaehler[0]) * 50;
-  const bonusP2 = (gewinnZaehler[1] - verlustZaehler[1]) * 50;
-  const bonusP3 = (gewinnZaehler[2] - verlustZaehler[2]) * 50;
-  const bonusP4 = (gewinnZaehler[3] - verlustZaehler[3]) * 50;
-
-  document.getElementById("bonus-p1").textContent = bonusP1 || 0;
-  document.getElementById("bonus-p2").textContent = bonusP2 || 0;
-  document.getElementById("bonus-p3").textContent = bonusP3 || 0;
-  document.getElementById("bonus-p4").textContent = bonusP4 || 0;
-  document.getElementById("bogew-p1").textContent = gewinnZaehler[0] - verlustZaehler[0] || 0;
-  document.getElementById("bogew-p2").textContent = gewinnZaehler[1] - verlustZaehler[1] || 0;
-  document.getElementById("bogew-p3").textContent = gewinnZaehler[2] - verlustZaehler[2] || 0;
-  document.getElementById("bogew-p4").textContent = gewinnZaehler[3] - verlustZaehler[3] || 0;
-  
-    // Bonus-Zeile: (verl Gegner) × 30
-  const bonusG1 = (verlustZaehler[1]+verlustZaehler[2]+verlustZaehler[3]) * 30;
-  const bonusG2 = (verlustZaehler[0]+verlustZaehler[2]+verlustZaehler[3]) * 30;
-  const bonusG3 = (verlustZaehler[0]+verlustZaehler[1]+verlustZaehler[3]) * 30;
-  const bonusG4 = (verlustZaehler[0]+verlustZaehler[1]+verlustZaehler[2]) * 30;
-
-  document.getElementById("bonus-g1").textContent = bonusG1 || 0;
-  document.getElementById("bonus-g2").textContent = bonusG2 || 0;
-  document.getElementById("bonus-g3").textContent = bonusG3 || 0;
-  document.getElementById("bonus-g4").textContent = bonusG4 || 0;
-  document.getElementById("bogew-g1").textContent = verlustZaehler[1]+verlustZaehler[2]+verlustZaehler[3] || 0;
-  document.getElementById("bogew-g2").textContent = verlustZaehler[0]+verlustZaehler[2]+verlustZaehler[3] || 0;
-  document.getElementById("bogew-g3").textContent = verlustZaehler[0]+verlustZaehler[1]+verlustZaehler[3] || 0;
-  document.getElementById("bogew-g4").textContent = verlustZaehler[0]+verlustZaehler[1]+verlustZaehler[2] || 0;
-  
-  const gesamtP1 = punkteSummen[0] + bonusP1 +bonusG1;
-  const gesamtP2 = punkteSummen[1] + bonusP2 +bonusG2;
-  const gesamtP3 = punkteSummen[2] + bonusP3 +bonusG3;
-  const gesamtP4 = punkteSummen[3] + bonusP4 +bonusG4;
-
-  document.getElementById("gesamt-p1").textContent = gesamtP1 || 0;
-  document.getElementById("gesamt-p2").textContent = gesamtP2 || 0;
-  document.getElementById("gesamt-p3").textContent = gesamtP3 || 0;
-  document.getElementById("gesamt-p4").textContent = gesamtP4 || 0;
-
-  // Optional: Farbliche Hervorhebung der Punkte
-  ["gesamt-p1", "gesamt-p2", "gesamt-p3", "gesamt-p4"].forEach(id => {
-    const cell = document.getElementById(id);
-    if (cell) {
-      const wert = parseInt(cell.textContent) || 0;
-      cell.style.color = wert > 0 ? "green" : wert < 0 ? "red" : "black";
-      cell.style.fontWeight = "bold";
-    }
-  });
-
-  updatePlayerNamesInTable();
-}
-
-
-function closeSpielDialog() {
-  const dialog = document.getElementById("spiel-dialog");
-  if (dialog.open) {
-    dialog.close();
-  }
-}
-
-function updatePlayerNamesInTable() {
-  const ths = document.querySelectorAll("#skat-table thead tr:nth-child(1) th.player-name1, th.player-name2, th.player-name3, th.player-name4");
-  ths[0].textContent = spielerNamen[0] + " (LF)";
-  ths[1].textContent = spielerNamen[1];
-  ths[2].textContent = spielerNamen[2];
-  ths[3].textContent = spielerNamen[3];
-}
-
-function createButtonRow(spielIndex) {
-  const tbody = document.getElementById("game-rows");
-  const btnRow = document.createElement("tr");
-  btnRow.classList.add("button-row");
-
-  const colCount = 26; // document.querySelectorAll("#skat-table thead tr:first-child th").length;
-
-  const td = document.createElement("td");
-  td.colSpan = colCount;        
-  td.style.textAlign = "center";
-  td.style.background = "#f5f5f5";
-  td.style.padding = "6px 0";
-
-  //td.innerHTML = 
- // `<button onclick="openNewModal(${spielIndex})" style="padding:4px 12px; font-weight:bold;">Neuer Eintrag…</button>`;
-td.innerHTML = `
-  <span style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
-    <button onclick="openNewModal(${spielIndex})" class="neuer-eintrag-btn" style="flex-shrink: 0;">
-      📝 neuer Spieleintrag ...
-    </button>
-  </span>
-`;
-
-
-  btnRow.appendChild(td);
-  tbody.appendChild(btnRow);
-}
-
-function berechneSpielwert(spiel) {
-    const grundwert = parseInt(spiel.grundwert) || 0;
-    if (grundwert === 0 || grundwert === "E") return 0;  // Pass oder ungültig
-
-    // ── Null-Spiele ────────────────────────────────────────────────
-    if (grundwert === 23) {
-        const hatHand   = spiel.hand === "X";
-        const hatOuvert = spiel.offen === "X";   // Ouvert = offen
-
-        if (hatHand && hatOuvert) return 59;
-        if (hatHand)              return 35;
-        if (hatOuvert)            return 46;
-        return 23;   // normales Null ohne Hand/Ouvert
-    }
-
-    // ── Farb- und Grand-Spiele ─────────────────────────────────────
-    let multiplikator = 0;
-
-    // Jede dieser Stufen erhöht den Multiplikator um genau 1
-    if (spiel.hand        === "X") multiplikator++;
-    if (spiel.schneider   === "X") multiplikator++;
-    if (spiel.schneiderang === "X") multiplikator++;
-    if (spiel.schwarz     === "X") multiplikator++;
-    if (spiel.schwarzang  === "X") multiplikator++;
-    if (spiel.offen       === "X") multiplikator++;
-
-    // Spitzenfaktor
-    const spitzen = parseInt(spiel.mitSpitzen) || parseInt(spiel.ohneSpitzen) || 0;
-    const spitzenFaktor = spitzen + 1;   // mit 1 = ×2, mit 3 = ×4, ohne 2 = ×3, ohne 0 = ×1 usw.
-
-    // Endergebnis
-    const spielwert = grundwert * (spitzenFaktor + multiplikator);
-
-    return spielwert;
-}
-
-function setSpitzen(isMitSpitzen) {
-  const mit = document.getElementById("mitSpitzen");
-  const ohne = document.getElementById("ohneSpitzen");
-  const grundwert = document.getElementById("grundwert")?.value || "";
-
-    if (isMitSpitzen) {
-    mit.value = mit.value || "1";
-    ohne.value = "";
-  } else {
-    ohne.value = ohne.value || "1";
-    mit.value = "";
-  }
-  
-  // Bei Eingepasst: LEER LASSEN
-  if (grundwert === "Eingepasst" || grundwert === "E") {
-    mit.value = "";
-    ohne.value = "";
-  }
-
-
-
-  // Rest unverändert...
-  document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll("#spitzen-buttons button")[isMitSpitzen ? 0 : 1].classList.add("active");
-
-  const aktuelleAnzahl = isMitSpitzen ? parseInt(mit.value) || 1 : parseInt(ohne.value) || 1;
-  document.querySelectorAll("#spitzen-anzahl .spitze-btn").forEach(btn => {
-    btn.classList.toggle("active", parseInt(btn.textContent) === aktuelleAnzahl);
-  });
-}
-
-
-
-
-function selectSpitze(value) {
-  const mit = document.getElementById("mitSpitzen");
-  const ohne = document.getElementById("ohneSpitzen");
-
-  if (mit.value === "1") {
-    mit.value = value;
-  } else {
-    ohne.value = value;
-  }
-
-  document.querySelectorAll(".spitze-btn").forEach(b => {
-    b.classList.toggle("active", b.textContent == value);
-  });
-}
-
-function generatePlayerButtons(spielIndex) {
-  const container = document.getElementById("player-buttons");
-  container.innerHTML = "";
-
-  const führenderSpieler = (spielIndex % 4);
-  for (let i = 0; i < 4; i++) {
-    if (i === führenderSpieler) continue;
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = spielerNamen[i];
-    btn.style.marginRight = "5px";
-    btn.style.fontSize = "16px";
-    btn.style.padding = "5px 5px";
-    btn.style.cursor = "pointer";
-    btn.style.width = "200px";
-    btn.style.height = "80px";
-    btn.style.borderRadius = "6px";
-
-    const ausgewaehlter = parseInt(document.getElementById("spiel-form").dataset.ausgewaehlterSpieler, 10);
-    if (ausgewaehlter === i + 1) {
-      btn.style.background = "#4CAF50";
-      btn.style.color = "#fff";
-    }
-
-    btn.addEventListener("click", () => {
-      Array.from(container.children).forEach(b => {
-        b.style.background = "";
-        b.style.color = "#000";
-      });
-
-      btn.style.background = "#4CAF50";
-      btn.style.color = "#fff";
-
-      document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = i + 1;
-    });
-
-    container.appendChild(btn);
-  }
-}
-
-function createCSVButton() {
-  const container = document.getElementById("csv-export-container");
-  if (!container || container.children.length > 0) return;
-  
-  const csvBtn = document.createElement("button");
-  csvBtn.innerHTML = "📊 Export CSV";
-  csvBtn.style.cssText = `
-    padding: 6px 16px; 
-    margin-left: auto;
-    background: linear-gradient(135deg, #28a745, #20c997);
-    color: white; border: none; border-radius: 6px;
-    font-size: 15px; cursor: pointer;
-    box-shadow: 0 4px 12px rgba(40,167,69,0.3); transition: transform 0.2s;
-  `;
-  csvBtn.addEventListener("mouseenter", () => csvBtn.style.transform = "scale(1.05)");
-  csvBtn.addEventListener("mouseleave", () => csvBtn.style.transform = "scale(1)");
-  csvBtn.onclick = exportCSV;
-  container.appendChild(csvBtn);
-}
-
-function getInt(id) {
-  return parseInt(document.getElementById(id)?.textContent || 0, 10);
-}
-
-function exportCSV() {
-  const headers = [
-    'Nr','Grundwert','Mit','Ohne','Hand','Schneider','Schn.Ang','Schwarz','Schw.Ang','Offen','+', '-',
-    spielerNamen[0],'Gew1','Verl1',
-    spielerNamen[1],'Gew2','Verl2',
-    spielerNamen[2],'Gew3','Verl3',
-    spielerNamen[3],'Gew4','Verl4',
-    'Eingepasst'
-  ];
-
-  const csvRows = [headers];
-  
-  spielDaten.forEach(spiel => {
-    csvRows.push([
-      spiel.nr || '', spiel.grundwert || '', spiel.mitSpitzen || '', spiel.ohneSpitzen || '',
-      spiel.hand || '', spiel.schneider || '', spiel.schneiderang || '', spiel.schwarz || '',
-      spiel.schwarzang || '', spiel.offen || '', spiel.pluswert || '', spiel.minuswert || '',
-      spiel.p1_delta || '', spiel.p1_gew || '', spiel.p1_verl || '',
-      spiel.p2_delta || '', spiel.p2_gew || '', spiel.p2_verl || '',
-      spiel.p3_delta || '', spiel.p3_gew || '', spiel.p3_verl || '',
-      spiel.p4_delta || '', spiel.p4_gew || '', spiel.p4_verl || '',
-      spiel.eingepasst || ''
-    ]);
-  });
-
-  // ENDSUMMEN
-  csvRows.push([
-    '','','','','','','','','','','','',
-    document.getElementById('sum-p1')?.textContent || '',
-    document.getElementById('gew-p1')?.textContent || '',
-    document.getElementById('verl-p1')?.textContent || '',
-    document.getElementById('sum-p2')?.textContent || '',
-    document.getElementById('gew-p2')?.textContent || '',
-    document.getElementById('verl-p2')?.textContent || '',
-    document.getElementById('sum-p3')?.textContent || '',
-    document.getElementById('gew-p3')?.textContent || '',
-    document.getElementById('verl-p3')?.textContent || '',
-    document.getElementById('sum-p4')?.textContent || '',
-    document.getElementById('gew-p4')?.textContent || '',
-    document.getElementById('verl-p4')?.textContent || '',
-    document.getElementById('sum-eingepasst')?.textContent || ''
-  ]);
-  
-  const bonusG1 = getInt('verl-p2') + getInt('verl-p3') + getInt('verl-p4');
-  const bonusG2 = getInt('verl-p1') + getInt('verl-p3') + getInt('verl-p4');
-  const bonusG3 = getInt('verl-p1') + getInt('verl-p2') + getInt('verl-p4');
-  const bonusG4 = getInt('verl-p1') + getInt('verl-p2') + getInt('verl-p3');
-  const bonusP1 = getInt('gew-p1') - getInt('verl-p1');
-  const bonusP2 = getInt('gew-p2') - getInt('verl-p2');
-  const bonusP3 = getInt('gew-p3') - getInt('verl-p3');
-  const bonusP4 = getInt('gew-p4') - getInt('verl-p4');
-  const gesamtP1 = getInt('sum-p1') + bonusP1*50 + bonusG1*30;
-  const gesamtP2 = getInt('sum-p2') + bonusP2*50 + bonusG2*30;
-  const gesamtP3 = getInt('sum-p3') + bonusP3*50 + bonusG3*30;
-  const gesamtP4 = getInt('sum-p4') + bonusP4*50 + bonusG4*30;
-  
-    csvRows.push([
-    '','','','','','','','','','','','',
-    bonusP1 * 50, bonusP1, '',
-    bonusP2 * 50, bonusP2, '',
-    bonusP3 * 50, bonusP3, '',
-    bonusP4 * 50, bonusP4, '', '']);
-    csvRows.push([
-    '','','','','','','','','','','','',
-    bonusG1 * 30, bonusG1, '',
-    bonusG2 * 30, bonusG2, '',
-    bonusG3 * 30, bonusG3, '',
-    bonusG4 * 30, bonusG4, '', '']);
-    csvRows.push([
-    '','','','','','','','','','','','',
-    gesamtP1, '', '',
-    gesamtP2, '', '',
-    gesamtP3, '', '',
-    gesamtP4, '', '', '']);    
-  
-
-  // 🔥 SEMIKOLON + UTF-8 BOM
-  const csvContent = '\uFEFF' + csvRows.map(row => 
-    row.map(cell => `"${cell}"`).join(';')  // Semikolon!
-  ).join('\n');
-
-  const serieWert = document.querySelector('input[name="serie"]:checked')?.value || '0';
-  const tischWert = document.querySelector('input[name="tisch"]:checked')?.value || '0';
-  
-  downloadCSV(csvContent, `Spielliste_S${serieWert}_T${tischWert}_${new Date().toLocaleDateString('de-DE')}.csv`);
-}
-
-function downloadCSV(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement("a");
-  if (link.download !== undefined) {
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-}
-
-const spielerNamen = ["Spieler 1", "Spieler 2", "Spieler 3", "Spieler 4"];
-
-function generatePlayerNameButtons() {
-  const mitspielerListe = [
-	"Bertram, Frank",
-	"Bleckmann, Norbert",
-	"Böllsterling, Gottfried",
-	"Bühl, Heinz",
-	"Faßbender, Kai",
-	"Gebhardt, Harry",
-	"Götte, Norbert",
-	"Grapatin, Alexander",
-	"Gruschka, Alfred",
-	"Heimann, Klaus-Dieter",
-	"Hetz, Michael",
-	"Holtkamp, Bodo",
-	"Jeske, Joachim",
-	"Langer, Kurt",
-	"Pestotnik, Ralf",
-	"Puls, Wilfried",
-	"Schekerka, Herbert",
-	"Schnecke, Dieter",
-	"Schwarz, Peter",
-	"Selzer, Bernhard",
-	"Stümpges, Achim",
-	"Gast"
-	  ];
-
-  for (let pos = 1; pos <= 4; pos++) {
-    const container = document.getElementById(`player-btn-container-${pos}`);
-    if (!container) continue;
-
-    container.innerHTML = "";
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.textContent = spielerNamen[pos - 1] || `Spieler ${pos}`;
-    btn.style.fontSize = "15px";
-    btn.style.padding = "6px 12px";
-    btn.style.cursor = "pointer";
-    btn.style.minWidth = "100px";
-    btn.style.borderRadius = "6px";
-
-    btn.addEventListener("click", () => {
-      // Dropdown erzeugen (bestehend)
-      const select = document.createElement("select");
-      select.style.fontSize = "15px";
-      select.style.padding = "4px 8px";
-      select.style.minWidth = "180px";
-      select.style.maxWidth = "220px";
-      select.style.marginTop = "4px";
-
-      const optDefault = document.createElement("option");
-      optDefault.value = "";
-      optDefault.text = "— Namen wählen —";
-      select.appendChild(optDefault);
-
-      const aktuell = spielerNamen[pos - 1];
-      mitspielerListe.forEach(name => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.text = name === "Gast" ? "Gast (Name eingeben)" : name;
-        if (name === aktuell) opt.selected = true;
-        select.appendChild(opt);
-      });
-
-      // GAST-LOGIK: Bei "Gast" Textfeld zeigen
-      const gastInput = document.createElement("input");
-      gastInput.type = "text";
-      gastInput.id = `gast-input-${pos}`;
-      gastInput.placeholder = "Gastname eingeben...";
-      gastInput.style.display = "none";
-      gastInput.style.marginTop = "4px";
-      gastInput.style.padding = "4px 8px";
-      gastInput.style.width = "200px";
-
-      select.addEventListener("change", () => {
-        const wert = select.value;
-        if (wert === "Gast") {
-          gastInput.style.display = "block";
-          gastInput.focus();
-          return;  // Warte auf Gast-Eingabe
-        } else if (gastInput.style.display === "block") {
-          gastInput.style.display = "none";  // Verstecke bei Wechsel
-        }
-
-        if (wert && wert !== "Gast") {
-          spielerNamen[pos - 1] = wert;
-          btn.textContent = wert;
-          updatePlayerNamesInTable();
-        }
-        container.removeChild(select);
-        if (gastInput.parentNode) container.removeChild(gastInput);
-        container.appendChild(btn);
-      });
-
-      // Gast-Eingabe bestätigen (Enter oder Blur)
-      gastInput.addEventListener("change", () => {
-        const gastName = gastInput.value.trim();
-        if (gastName) {
-          spielerNamen[pos - 1] = `Gast: ${gastName}`;
-          btn.textContent = `Gast: ${gastName}`;
-          updatePlayerNamesInTable();
-        }
-        container.removeChild(select);
-        container.removeChild(gastInput);
-        container.appendChild(btn);
-      });
-
-      // Bestehender Outside-Click...
-      container.removeChild(btn);
-      container.appendChild(select);
-      container.appendChild(gastInput);
-      select.focus();
-    });
-
-    container.appendChild(btn);
-  }
-}
-
-
-function generateGewinnstufenButtons(spielIndex) {
-  const container = document.getElementById("gewinnstufen-buttons");
-  container.innerHTML = "";
-
-  if (spielIndex === null || spielIndex < 0) {
-    // wenn kein gültiger Index: einfach nichts anzeigen
-    return;
-  }
-
-  const data = spielDaten[spielIndex];
-  const grundwert = document.getElementById("grundwert").value;
-
-  if (!grundwert || grundwert === "Pass" || grundwert === "E") return;
-
-  const MAP = {
-    "Hand": "hand",
-    "Schneider": "schneider",
-    "Schn.ang.": "schneiderang",
-    "Schwarz": "schwarz",
-    "Schw.ang.": "schwarzang",
-    "Ouvert": "offen"
-  };
-
-  const buttons =
-    grundwert == 23
-      ? ["Hand", "Ouvert"]
-      : ["Hand", "Schneider", "Schn.ang.", "Schwarz", "Schw.ang.", "Ouvert"];
-
-  buttons.forEach(label => {
-    const key = MAP[label];
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "gw-btn";
-    btn.innerHTML = label.replace(".", ".<br>");
-
-    if (data[key] === "X") {
-      btn.classList.add("active");
-    }
-
-    btn.addEventListener("click", () => {
-      data[key] = data[key] === "X" ? "" : "X";
-      btn.classList.toggle("active");
-      
-	  // Schwarz angesagt
-	  if (label === "Schw.ang.") {
-		if (data.schwarzang === "X" && data.schwarz !== "X") { 
-		  data.schwarz = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schwarz"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}  
-		if (data.schwarzang === "X" && data.schneiderang !== "X") { 
-		  data.schneiderang = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schn."));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}  
-		if (data.schwarzang === "X" && data.schneider !== "X") { 
-		  data.schneider = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}  
-		if (data.schwarzang === "X" && data.hand !== "X") {
-		  data.hand = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Hand"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}
-	  }  	      
-
-      
-	  // Schwarz 
-	  if (label === "Schwarz") {
-		if (data.schwarz === "X" && data.schneider !== "X") { 
-		  data.schneider = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}  
-	  }  	  
-      
-	  // Schneider angesagt 
-	  if (label === "Schn.ang.") {
-		if (data.schneiderang === "X" && data.schneider !== "X") { 
-		  data.schneider = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}  
-		if (data.schneiderang === "X" && data.hand !== "X") {
-		  data.hand = "X";
-		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Hand"));
-		  if (setBtn) {setBtn.classList.add("active");}
-		}
-	  }  	      
-
-      fillTable();
-    });
-
-    container.appendChild(btn);
-  });
-}
-
-function resetButtons() {
-  document.querySelectorAll("#grundwert-buttons button").forEach(btn => {
-    btn.style.backgroundColor = "";
-    btn.style.fontWeight = "";
-    if (btn.textContent === "♥" || btn.textContent === "♦") {
-      btn.style.color = "red";
-    } else {
-      btn.style.color = "black";
-    }
-  });
-
-  document.getElementById("spitzen-buttons").style.display = "none";
-  document.getElementById("spitzen-anzahl").style.display = "none";
-  document.querySelectorAll(".spitzen-btn").forEach(btn => btn.classList.remove("active"));
-  document.querySelectorAll(".spitze-btn").forEach(btn => btn.classList.remove("active"));
-}
-
-function renderSpitzenButtons(max) {
-  const container = document.getElementById("spitzen-anzahl");
-  container.innerHTML = "";
-  container.style.display = "flex";
-
-  for (let i = 1; i <= max; i++) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "spitze-btn";
-    btn.textContent = i;
-
-    btn.onclick = () => selectSpitze(i);
-
-    container.appendChild(btn);
-  }
-}
-
-
-
-function setGrundwert(value) {
-  const input = document.getElementById("grundwert");
-  const spitzenBlock = document.getElementById("spitzen-buttons");
-  const spitzenAnzahlBlock = document.getElementById("spitzen-anzahl");
-  const gewinnstufenBlock = document.getElementById("gewinnstufen-buttons");
-
-  const grundwertMap = {
-    "Grand": 24,
-    "♣": 12,
-    "♠": 11,
-    "♥": 10,
-    "♦": 9,
-    "Null": 23,
-    "Pass": "E"
-  };
-
-  // Grundwert-Zahl in das Input schreiben
-  input.value = grundwertMap[value];
-
-  // Spitzen ein-/ausblenden und Anzahl setzen
-  if (value === "Null" || value === "Pass") {
-    spitzenBlock.style.display = "none";
-    spitzenAnzahlBlock.style.display = "none";
-    document.getElementById("mitSpitzen").value = "";
-    document.getElementById("ohneSpitzen").value = "";
-    document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".spitze-btn").forEach(b => b.classList.remove("active"));
-  } else {
-    spitzenBlock.style.display = "flex";
-    spitzenAnzahlBlock.style.display = "flex";
-    if (value === "Grand") {
-      renderSpitzenButtons(4);
-    } else {
-      renderSpitzenButtons(11);
-    }
-  }
-
-  // Gewinnstufen-Buttons neu zeichnen – aber NUR für das aktuelle Spiel
-  gewinnstufenBlock.innerHTML = "";
-  const currentIndex = getCurrentSpielIndex();   // ← hier aktuellen Index holen
-  if (currentIndex >= 0) {
-    generateGewinnstufenButtons(currentIndex);   // ← nur diesen Index verwenden
-  }
-
-  // Grundwert-Buttons optisch markieren
-  const buttonsUI = document.querySelectorAll("#grundwert-buttons button");
-  buttonsUI.forEach(btn => {
-    let baseColor = "black";
-    if (btn.textContent === "♥" || btn.textContent === "♦") baseColor = "red";
-
-    if (btn.textContent === value) {
-      btn.style.backgroundColor = "#4CAF50";
-      btn.style.color = "white";
-      btn.style.fontWeight = "bold";
-    } else {
-      btn.style.backgroundColor = "";
-      btn.style.color = baseColor;
-      btn.style.fontWeight = "";
-    }
-  });
-}
-
-function getCurrentSpielIndex() {
-  const idx = parseInt(document.getElementById("spiel-form").dataset.spielIndex, 10);
-  return isNaN(idx) ? -1 : idx;
-}
-
-function openNewModal(spielIndex = null) {
-  const dialog = document.getElementById("spiel-dialog");
-  const spielNummerSpan = document.getElementById("spielnummer-display");
-  const spieleAnz = document.querySelector('input[name="karten"]:checked')?.value || '0';  
-  
-  // ── Scale dynamisch setzen ──
-  dialog.style.transform = `scale(${scale*0.9})`;  //10% kleiner
-  dialog.style.transformOrigin = 'top center';
-  
-  // ── NEU: immer erstmal alles zurücksetzen ────────────────────────
-  resetButtons();           // ← ruft die bestehende Reset-Funktion auf
-  document.getElementById("grundwert").value = "";
-  document.getElementById("mitSpitzen").value = "";
-  document.getElementById("ohneSpitzen").value = "";
-  
-  if (spielIndex !== null && spielIndex >= 0) {
-    // ── Bestehendes Spiel bearbeiten ──
-    const spiel = spielDaten[spielIndex];
-    document.getElementById("grundwert").value = spiel.grundwert || "";
-    document.getElementById("mitSpitzen").value = spiel.mitSpitzen || "";
-    document.getElementById("ohneSpitzen").value = spiel.ohneSpitzen || "";
-    document.getElementById("spiel-form").dataset.spielIndex = spielIndex;
-    document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = spiel.spieler || "";
-    
-    generatePlayerButtons(spielIndex);
-    generateGewinnstufenButtons(spielIndex);
-    spielNummerSpan.textContent = spiel.nr + ' / '+spieleAnz;
-
-    // Buttons für den gespeicherten Grundwert wieder aktivieren
-    const grundwertMapReverse = {
-      "24": "Grand",
-      "12": "♣",
-      "11": "♠",
-      "10": "♥",
-      "9":  "♦",
-      "23": "Null",
-      "E":  "Pass"
-    };
-    const selectedText = grundwertMapReverse[spiel.grundwert];
-    if (selectedText) {
-      setGrundwert(selectedText);   // ← wichtig: visuell wieder markieren
-    }
-    const mitSpitzenVal  = parseInt(spiel.mitSpitzen) || 0;
-    const ohneSpitzenVal = parseInt(spiel.ohneSpitzen) || 0;
-
-    if (mitSpitzenVal > 0) {
-        setSpitzen(true);
-        // Anzahl-Button markieren
-        document.querySelectorAll('#spitzen-anzahl .spitze-btn')
-            .forEach(btn => {
-                btn.classList.toggle('active', btn.textContent == mitSpitzenVal);
-            });
-    } else if (ohneSpitzenVal > 0) {
-        setSpitzen(false);
-        document.querySelectorAll('#spitzen-anzahl .spitze-btn')
-            .forEach(btn => {
-                btn.classList.toggle('active', btn.textContent == ohneSpitzenVal);
-            });
-    } else {
-        // weder mit noch ohne → beide deaktivieren
-        document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
-        document.getElementById("spitzen-anzahl").style.display = "none";
-    }    
-  } else {
-    // ── NEUER Eintrag ──
-    const emptyIndex = spielDaten.findIndex(s =>
-      !s.grundwert && !s.hand && !s.schneider && !s.schneiderang &&
-      !s.schwarz && !s.schwarzang && !s.offen
-    );
-    const idx = emptyIndex >= 0 ? emptyIndex : spielDaten.length - 1;
-
-    // Daten zurücksetzen
-    const s = spielDaten[idx];
-    s.grundwert = "";
-    s.hand = "";
-    s.schneider = "";
-    s.schneiderang = "";
-    s.schwarz = "";
-    s.schwarzang = "";
-    s.offen = "";
-    s.mitSpitzen = "";
-    s.ohneSpitzen = "";
-    s.spieler = "";
-
-    document.getElementById("spiel-form").dataset.spielIndex = idx;
-    document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = "";
-    
-    generatePlayerButtons(idx);
-    // Gewinnstufen-Buttons bewusst leer lassen bei neuem Spiel
-    document.getElementById("gewinnstufen-buttons").innerHTML = "";
-
-    spielNummerSpan.textContent = idx + 1;
-  }
-
-  dialog.showModal();
-}
-
-
-document.getElementById("btn-gewonnen").addEventListener("click", () => {
-  saveGame(true);   // true = gewonnen
-});
-
-document.getElementById("btn-verloren").addEventListener("click", () => {
-  saveGame(false);  // false = verloren
-});
-
-function getTabletResolution() {
-  const width = screen.width;
-  const height = screen.height;
-  const pixelRatio = window.devicePixelRatio || 1;  // Retina/High-DPI (z.B. iPad)
-  const realWidth = Math.round(width * pixelRatio);
-  const realHeight = Math.round(height * pixelRatio);
-  
-  console.log(`Viewport: ${window.innerWidth} x ${window.innerHeight}`);
-  console.log(`Screen: ${width} x ${height} (CSS-Pixel)`);
-  console.log(`Real Resolution: ${realWidth} x ${realHeight} (physisch)`);
-  console.log(`Pixel Ratio: ${pixelRatio}x`);
-  
-  // Tablet-Erkennung (optional)
-  if ((width >= 768 && width <= 1366) || (height >= 768 && height <= 1366)) {
-    console.log('Gerät: Wahrscheinlich Tablet!');
-  }
-  
-  return { width, height, realWidth, realHeight, pixelRatio };
-}
-
-
-function saveGame(gewonnen) {
-    const form = document.getElementById("spiel-form");
-    const index = parseInt(form.dataset.spielIndex, 10);
-    const neuerSpieler = parseInt(form.dataset.ausgewaehlterSpieler, 10);
-    const alterSpieler = parseInt(form.dataset.originalSpieler, 10) || 0;
-
-    if (isNaN(index)) {
-        alert("Kein gültiges Spiel ausgewählt.");
-        return;
-    }
-
-	const grundwertInput = document.getElementById("grundwert");
-	const grundwert = grundwertInput ? grundwertInput.value.trim() : form.dataset.grundwert || "E";
-	if (!grundwert) {  // ← Neu: Prüft leer/falsy
-		alert("Bitte Spielart (Grand,♣,♠,♥,♦,Null oder Eingepasst) auswählen.");
-		return;
-	}
-
-    const istPass = (grundwert === "E" || grundwert === "Pass");
-
-    // Bei Pass/Eingepasst darf kein Spieler ausgewählt sein → erlauben
-    let spielerGueltig = !isNaN(neuerSpieler) && neuerSpieler >= 1 && neuerSpieler <= 4;
-    if (!spielerGueltig && !istPass) {
-        alert("Bitte einen Spieler auswählen (außer bei Pass).");
-        return;
-    }
- 
-    const spiel = spielDaten[index];
-    
-    if (spiel.offen === "X" && grundwert!="23" && 
-    	(spiel.hand === "" || spiel.schneider === ""  || spiel.schneiderang === "" || spiel.schwarz === ""  || spiel.schwarzang === "")) {
-        alert("❌ Ouvert nur bei Hand + Schneider + Schneider Ang. + Schwarz + Schwarz Ang. möglich!");
-        return;
-    }    
-    if (spiel.schwarzang === "X" && 
-    	(spiel.hand === "" || spiel.schneider === ""  || spiel.schneiderang === "" || spiel.schwarz === "")) {
-        alert("❌ Schwarz angesagt nur bei Hand + Schneider + Schneider Ang. + Schwarz möglich!");
-        return;
-    }    
-    if (spiel.schwarz === "X" && spiel.schneider === "") {
-        alert("❌ Schwarz nur bei Schneider möglich!");
-        return;
-    }    
-    if (spiel.schneiderang === "X" && (spiel.hand === "" || spiel.schneider === "")) {
-        alert("❌ Schneider angesagt nur bei Hand + Schneider möglich!");
-        return;
-    }
- 
-
-
-
-    // 1. Alten Zustand merken – SEHR WICHTIG!
-    const alterSpielerVorher = spiel.spieler;           // vorheriger Spieler
-    const warGewonnen        = spiel.gewonnen;          // vorheriger Ausgang
-
-    // 2. Neue Werte übernehmen
-    spiel.grundwert     = grundwert;
-    spiel.spieler       = istPass ? null : neuerSpieler;
-    spiel.gewonnen      = istPass ? null : gewonnen;
-
-    // Spitzen-Werte holen
-    const mitInput  = document.getElementById("mitSpitzen");
-    const ohneInput = document.getElementById("ohneSpitzen");
-
-    let mit  = mitInput  ? parseInt(mitInput.value)  || 0 : 0;
-    let ohne = ohneInput ? parseInt(ohneInput.value) || 0 : 0;
-
-    // Default: wenn nichts ausgewählt → mit 1 Spitze
-    if (mit === 0 && ohne === 0) {
-        mit = 1;
-        ohne = 0;
-        // Optional: visuell aktualisieren (falls Dialog noch offen)
-        if (mitInput)  mitInput.value  = "1";
-        if (ohneInput) ohneInput.value = "";
-        setSpitzen(true);  // Buttons auf "mit Spitzen" + 1 setzen
-    }
-
-    spiel.mitSpitzen  = mit;
-    spiel.ohneSpitzen = ohne;
-
-    if (spiel.schwarz === "X" && spiel.mitSpitzen === 0) {
-        alert("❌ Schwarz ohne Kreuz Bube nicht möglich!");
-        return;
-    }       
-
-    // 3. Bei Pass: nichts weiter berechnen
-    if (istPass) {
-        spiel.pluswert  = "";
-        spiel.minuswert = "";
-        spiel.hand = "";
-        spiel.schneider = "";
-        spiel.schneiderang = "";
-        spiel.schwarz = "";
-        spiel.schwarzang = "";
-        spiel.offen = "";
-        spiel.mitSpitzen = 0;
-        fillTable();
-        closeSpielDialog();
-        return;
-    }
-
-    // 4. Nur bei normalen Spielen Punkte & Zähler behandeln
-    const basisWert = berechneSpielwert(spiel);
-    const spielwert = basisWert * (gewonnen ? 1 : 2);
-    const deltaNeu  = gewonnen ? spielwert : -spielwert;
-
-    // 5. Alten Zustand rückgängig machen, wenn Spieler gewechselt hat
-    if (alterSpielerVorher && alterSpielerVorher !== neuerSpieler) {
-        const altKey = `p${alterSpielerVorher}`;
-        spiel[`${altKey}_delta`] = 0;
-
-        if (warGewonnen === true) {
-            spiel[`${altKey}_gew`] = Math.max(0, (parseInt(spiel[`${altKey}_gew`]) || 0) - 1);
-        } else if (warGewonnen === false) {
-            spiel[`${altKey}_verl`] = Math.max(0, (parseInt(spiel[`${altKey}_verl`]) || 0) - 1);
-        }
-    }
-
-    // 6. Neuen Zustand setzen
-    const neuKey = `p${neuerSpieler}`;
-    spiel[`${neuKey}_delta`] = deltaNeu;
-
-    if (gewonnen) {
-        spiel[`${neuKey}_gew`]  = (parseInt(spiel[`${neuKey}_gew`])  || 0) + 1;
-        spiel[`${neuKey}_verl`] = parseInt(spiel[`${neuKey}_verl`]) || 0;
-    } else {
-        spiel[`${neuKey}_gew`]  = parseInt(spiel[`${neuKey}_gew`])  || 0;
-        spiel[`${neuKey}_verl`] = (parseInt(spiel[`${neuKey}_verl`]) || 0) + 1;
-    }
-
-    // 7. + / - Spalte
-    if (gewonnen) {
-        spiel.pluswert  = spielwert;
-        spiel.minuswert = "";
-    } else {
-        spiel.pluswert  = "";
-        spiel.minuswert = -spielwert;              
-    }
-    
-
-
-    fillTable();
-    closeSpielDialog();
-}
-
-document.querySelectorAll('input[name="karten"]').forEach(radio => {
-  radio.addEventListener('change', function() {
-    const kartenAnzahl = parseInt(this.value);
-    
-    // Zuerst kürzen (falls nötig)
-    if (spielDaten.length > kartenAnzahl) {
-      spielDaten.length = kartenAnzahl;
-    }
-    
-    // Dann auffüllen (wichtig!)
-    while (spielDaten.length < kartenAnzahl) {
-      spielDaten.push({
-        nr: spielDaten.length + 1,
-        grundwert: "", hand: "", schneider: "", schwarz: "", 
-        schneiderang: "", schwarzang: "", offen: "",
-        mitSpitzen: "", ohneSpitzen: "", spielwert: "",
-        pluswert: "", minuswert: "",
-        p1_punkte: "", p1_gew: "", p1_verl: "",
-        p2_punkte: "", p2_gew: "", p2_verl: "",
-        p3_punkte: "", p3_gew: "", p3_verl: "",
-        p4_punkte: "", p4_gew: "", p4_verl: "",
-        p1_delta: "", p2_delta: "", p3_delta: "", p4_delta: "",
-        eingepasst: "", spieler: "",
-        gewonnen: null  // Falls du das brauchst
-      });
-    }
-    
-    console.log(`spielDaten: ${spielDaten.length} Zeilen, letzte nr: ${spielDaten[spielDaten.length-1]?.nr}`);
-    fillTable();
-  });
-});
-
-function updateCopyright() {
-  const width = screen.width;
-  const height = screen.height;
-  document.getElementById('copyright').innerHTML = 
-    `© 2026 by Frank Bertram (V5d) | Width: ${width}px | Height: ${height}px | Scale: ${scale}`;
-}
-
-
-window.addEventListener("load", () => {
-  fillTable();
-  generatePlayerNameButtons();
-  createCSVButton();  
-  updateCopyright();
-  console.log(screen.width + 'x' + screen.height);  // Schnell-Check
-});
-
-
-</script>
-    <div id="copyright" style="font-size:8px;">
-    © 2026 by Frank Bertram (V)
-    </div> 
 </body>
 </html>
