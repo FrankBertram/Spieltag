@@ -465,10 +465,10 @@ function getTableSizes(n) {
     }
 
     // Wenn durch 3 teilbar, aber NICHT durch 4 → nur 3er-Tische
-    if (n % 3 === 0) {
-        for (let i = 0; i < n; i += 3) sizes.push(3);
-        return sizes;
-    }
+//    if (n % 3 === 0) {
+//        for (let i = 0; i < n; i += 3) sizes.push(3);
+//        return sizes;
+//    }
 
     // sonst Kombination aus 4er- und 3er-Tischen, 4er bevorzugen
     const max4 = Math.floor(n / 4);
@@ -628,3 +628,4 @@ function updateRanking() {
     </div>    
 </body>
 </html>
+
