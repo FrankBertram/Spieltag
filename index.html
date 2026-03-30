@@ -99,8 +99,9 @@
 		
 .file-block {
     position: absolute;
-    top: 25px;
-    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0px;
     background: white;
     padding: 10px;
     border-radius: 8px;
@@ -110,7 +111,8 @@
 
 .header {
     position: relative;  /* Für absolute Positionierung */
-    padding-right: 250px;  /* Platz für File-Block */
+    padding-right: 450px;  /* Platz für File-Block */
+    min-height: 50px;
 }		
 		.thick-line {border-top: 3px solid #333 !important;}
     </style>
@@ -119,13 +121,13 @@
 
     <div class="header">
         <img src="Skat.png" alt="Skat-Logo">
-        <h2>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h2>
+        <h3>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h3>
+        <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:8px;">
+            <label for="fileInput" style="margin:0;white-space:nowrap;font-size:12px;font-family:Arial,sans-serif;position:relative;top:-2px;">Mitspieler:</label>
+            <input type="file" id="fileInput" accept=".txt" style="font-size:12px;font-family:Arial,sans-serif;">
+            <button onclick="neustart()" style="background:#e53935;color:white;padding:2px 8px;border:none;border-radius:3px;cursor:pointer;font-size:12px;font-family:Arial,sans-serif;white-space:nowrap;line-height:1.4;position:relative;top:-8px;">Neustart</button>
+        </div>
     </div>
-
-<div id="fileSection" class="file-block">
-    <label for="fileInput">Mitspieler:</label>
-    <input type="file" id="fileInput" accept=".txt">
-</div>
     
     <div class="container">
         <div class="left">
@@ -150,7 +152,7 @@
                 <option value="">-- Spieler wählen --</option>
             </select>
             
-            <input type="number" id="currentResult" placeholder="Ergebnis eintragen">
+            <input type="number" inputmode="decimal" id="currentResult" placeholder="Ergebnis eintragen">
             
             <button onclick="saveCurrentResult()">Speichern und nächsten wählen</button>
             
@@ -199,10 +201,55 @@
 	});
       	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
 
-        fetch('Mitspieler.txt')
-            .then(r => r.ok ? r.text() : Promise.reject())
-            .then(text => loadPlayers(text))
-            .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+        function saveState() {
+            const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            localStorage.setItem('skat_state', JSON.stringify({
+                allPlayers, selectedPlayers: checked, results, currentRound
+            }));
+        }
+
+        function restoreState() {
+            const raw = localStorage.getItem('skat_state');
+            if (!raw) return false;
+            try {
+                const state = JSON.parse(raw);
+                if (!state.allPlayers || state.allPlayers.length === 0) return false;
+                state.allPlayers.forEach(name => addPlayerToList(name));
+                // Checkboxen gemäß gespeichertem Zustand setzen
+                const checkedSet = new Set(state.selectedPlayers || []);
+                allPlayers.forEach(p => {
+                    const cb = document.getElementById('cb_' + p);
+                    if (cb) cb.checked = checkedSet.has(p);
+                });
+                // Ergebnisse wiederherstellen
+                Object.keys(state.results || {}).forEach(name => {
+                    if (results[name]) {
+                        results[name].res1 = state.results[name].res1;
+                        results[name].res2 = state.results[name].res2;
+                    }
+                });
+                currentRound = state.currentRound || 1;
+                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+                updatePlayerSelect(true);
+                if (currentRound === 2) {
+                    startRound2();
+                } else {
+                    setupRound1();
+                }
+                updateRanking();
+                checkRoundComplete();
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        if (!restoreState()) {
+            fetch('Mitspieler.txt')
+                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(text => loadPlayers(text))
+                .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+        }
 
 
         document.getElementById('fileInput').addEventListener('change', e => {
@@ -239,6 +286,7 @@ function loadPlayers(text) {
     
     // 3. Auswahl und Anzeige aktualisieren
     updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
+    saveState();
 }
 
         function addPlayerToList(name) {
@@ -303,6 +351,7 @@ function loadPlayers(text) {
             resetGameIfNeeded();
             updatePlayerSelect();
             updateRanking();
+            saveState();
         }
 
         function resetGameIfNeeded() {
@@ -429,7 +478,7 @@ function loadPlayers(text) {
                 results[selected].res2 = numValue;
             }
 
-            document.getElementById('message').textContent = 
+            document.getElementById('message').textContent =
                 `Ergebnis Serie ${editingSeries || currentRound} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
 
             document.getElementById('currentResult').value = '';
@@ -440,6 +489,7 @@ function loadPlayers(text) {
             updatePlayerSelect(!wasEditing);
             updateRanking();
             checkRoundComplete();
+            saveState();
         }
 
         function startRound2() {
@@ -456,6 +506,7 @@ function loadPlayers(text) {
             updatePlayerSelect(true);
             updateRanking();
             checkRoundComplete();
+            saveState();
         }
 
 function getTableSizes(n) {
@@ -562,6 +613,24 @@ function updateRanking() {
 
 
 
+        function neustart() {
+            if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
+            localStorage.removeItem('skat_state');
+            // Ergebnisse zurücksetzen, Spielerliste behalten
+            allPlayers.forEach(name => {
+                results[name] = { res1: '', res2: '' };
+            });
+            // Alle Spieler wieder anwählen
+            allPlayers.forEach(p => {
+                const cb = document.getElementById('cb_' + p);
+                if (cb) cb.checked = true;
+            });
+            currentRound = 1;
+            editingPlayer = null;
+            editingSeries = null;
+            updateSelectedPlayers();
+        }
+
         function exportToCSV() {
             let playersToExport = selectedPlayers.map(name => ({
                 name,
@@ -628,8 +697,7 @@ function updateRanking() {
         });
     </script>
     <div class="footer">
-    © 2026 by Frank Bertram (V5)
+    © 2026 by Frank Bertram (V6)
     </div>    
 </body>
 </html>
-
