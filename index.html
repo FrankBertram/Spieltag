@@ -132,6 +132,10 @@
     <div class="container">
         <div class="left">
             <h3>Mitspieler wählen</h3>
+            <div style="display:flex;gap:5px;margin-bottom:5px;">
+                <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
+                <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
+            </div>
             <div class="checkbox-list" id="playerCheckboxes"></div>
             
             <button class="add-player" onclick="showAddPlayer()">Gast hinzufügen</button>
@@ -144,9 +148,11 @@
         
         <div class="middle">
             <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
+            <button onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0 0 10px 0;">Aus Firestore laden</button>
             <div class="round-info" id="roundInfo">
                 Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
             </div>
+            <p id="progress" style="font-size:13px;color:#555;margin:5px 0;"></p>
             
             <select id="playerSelect">
                 <option value="">-- Spieler wählen --</option>
@@ -192,6 +198,7 @@
         let currentRound = 1;
         let editingPlayer = null;
         let editingSeries = null;
+        let guests = new Set();
 
 	const datum = new Date();
         const datumText = datum.toLocaleDateString('de-DE', {
@@ -204,7 +211,7 @@
         function saveState() {
             const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
             localStorage.setItem('skat_state', JSON.stringify({
-                allPlayers, selectedPlayers: checked, results, currentRound
+                allPlayers, selectedPlayers: checked, results, currentRound, guests: [...guests]
             }));
         }
 
@@ -229,6 +236,7 @@
                     }
                 });
                 currentRound = state.currentRound || 1;
+                guests = new Set(state.guests || []);
                 selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
                 updatePlayerSelect(true);
                 if (currentRound === 2) {
@@ -269,7 +277,8 @@ function loadPlayers(text) {
     allPlayers = [];
     selectedPlayers = [];
     results = {};
-    
+    guests = new Set();
+
     // Checkbox-Container leeren
     const container = document.getElementById('playerCheckboxes');
     container.innerHTML = '';
@@ -317,6 +326,14 @@ function loadPlayers(text) {
             container.appendChild(div);
         }
 
+        function alleWaehlen(checked) {
+            allPlayers.forEach(p => {
+                const cb = document.getElementById('cb_' + p);
+                if (cb) cb.checked = checked && !guests.has(p);
+            });
+            updateSelectedPlayers();
+        }
+
         function showAddPlayer() {
             document.getElementById('addPlayerSection').style.display = 'block';
             document.getElementById('newPlayerName').focus();
@@ -331,6 +348,7 @@ function loadPlayers(text) {
             }
 
             addPlayerToList(name);
+            guests.add(name);
             input.value = '';
             document.getElementById('addPlayerSection').style.display = 'none';
 
@@ -355,17 +373,18 @@ function loadPlayers(text) {
         }
 
         function resetGameIfNeeded() {
-            const newSelected = new Set(selectedPlayers);
-            Object.keys(results).forEach(name => {
-                if (!newSelected.has(name)) {
-                    results[name] = { res1: '', res2: '' };
-                }
-            });
-            currentRound = 1;
+            // Nur UI aktualisieren, NICHT currentRound oder Ergebnisse zurücksetzen
             editingPlayer = null;
             editingSeries = null;
-            document.getElementById('exportSection').style.display = 'none';
-            setupRound1();
+            if (currentRound === 1) {
+                setupRound1();
+            } else {
+                const count = selectedPlayers.length;
+                document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
+                updatePlayerSelect(true);
+                updateRanking();
+                checkRoundComplete();
+            }
         }
 
         // NEU: Sortierung des Dropdowns in Serie 2 nach Serie-1-Ergebnis
@@ -433,12 +452,17 @@ function loadPlayers(text) {
         }
 
         function checkRoundComplete() {
+            const total = selectedPlayers.length;
             if (currentRound === 1) {
-                const allHaveRes1 = selectedPlayers.every(p => results[p].res1 !== '');
+                const done = selectedPlayers.filter(p => results[p].res1 !== '').length;
+                const allHaveRes1 = done === total;
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
+                document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done} von ${total} eingetragen` : '';
             } else if (currentRound === 2) {
+                const done = selectedPlayers.filter(p => results[p].res2 !== '').length;
                 const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
                 document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
+                document.getElementById('progress').textContent = total > 0 ? `Serie 2: ${done} von ${total} eingetragen` : '';
             }
         }
 
@@ -581,27 +605,39 @@ function updateRanking() {
     }
 
     // Tabelle rendern
+    let currentRank = 1;
     playersToShow.forEach((p, i) => {
+        // Ranggleichheit: gleicher Score = gleicher Rang
+        const scoreKey = currentRound === 1 ? (p.res1 || 0) : p.total;
+        const prevScoreKey = i > 0 ? (currentRound === 1 ? (playersToShow[i-1].res1 || 0) : playersToShow[i-1].total) : null;
+        if (i === 0) {
+            currentRank = 1;
+        } else if (scoreKey !== prevScoreKey) {
+            currentRank = i + 1;
+        }
+        const rank = currentRank;
+
         const row = document.createElement('tr');
 
         // Prüfen ob Tischwechsel → dicke Linie
         const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
         row.className = isTableChange ? 'thick-line' : '';
 
+        const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         row.innerHTML = `
-            <td>${i + 1}</td>
+            <td>${rank}</td>
             <td>${p.name}</td>
             <td>
                 <div class="edit-cell">
                     ${p.res1 !== '' ? p.res1 : '-'}
-                    ${currentRound === 2 ? '' : (p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 1)">Kor.</button>` : '')}
+                    ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 1)">Kor.</button>` : ''}
                 </div>
             </td>
             <td>${p.table}</td>
             <td>
                 <div class="edit-cell">
                     ${p.res2 !== '' ? p.res2 : '-'}
-                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${p.name}', 2)">Kor.</button>` : ''}
+                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 2)">Kor.</button>` : ''}
                 </div>
             </td>
             <td>${currentRound === 2 ? p.total : '-'}</td>
@@ -616,7 +652,7 @@ function updateRanking() {
         function neustart() {
             if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
             localStorage.removeItem('skat_state');
-            // Ergebnisse zurücksetzen, Spielerliste behalten
+            // Ergebnisse zurücksetzen, Spielerliste und Gäste behalten
             allPlayers.forEach(name => {
                 results[name] = { res1: '', res2: '' };
             });
@@ -695,9 +731,102 @@ function updateRanking() {
                 saveCurrentResult();
             }
         });
+
+        // Brücke für den Firestore-Import im Module-Script (siehe unten).
+        // Notwendig, weil let-Variablen nicht automatisch auf window liegen.
+        window.skatImportHelper = {
+            getPlayers: () => allPlayers.slice(),
+            addPlayer: (name, isGuest) => {
+                addPlayerToList(name);
+                if (isGuest) guests.add(name);
+            },
+            checkPlayer: (name) => {
+                const cb = document.getElementById('cb_' + name);
+                if (cb) cb.checked = true;
+            },
+            setResult: (name, serie, punkte) => {
+                if (!results[name]) return;
+                const num = typeof punkte === 'number' ? punkte : parseFloat(punkte);
+                if (Number.isNaN(num)) return;
+                if (serie === '1') results[name].res1 = num;
+                else if (serie === '2') results[name].res2 = num;
+            },
+            finalize: (hasSerie2) => {
+                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+                if (hasSerie2) {
+                    currentRound = 2;
+                    startRound2();
+                } else {
+                    currentRound = 1;
+                    setupRound1();
+                }
+                updateRanking();
+                checkRoundComplete();
+                saveState();
+            }
+        };
     </script>
     <div class="footer">
     © 2026 by Frank Bertram (V6)
-    </div>    
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
+            authDomain: "skatverein-b77ef.firebaseapp.com",
+            projectId: "skatverein-b77ef",
+            storageBucket: "skatverein-b77ef.firebasestorage.app",
+            messagingSenderId: "763387283518",
+            appId: "1:763387283518:web:9edf27d79876cf2059296f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.importFromFirestore = async function() {
+            if (!window.skatImportHelper) {
+                alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
+                return;
+            }
+            const heute = new Date().toISOString().slice(0, 10);
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = 'Lade aus Firestore …';
+            try {
+                const q = query(collection(db, 'spieltage'), where('datum', '==', heute));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    msgEl.textContent = '';
+                    alert('Keine Firestore-Einträge für ' + heute + ' gefunden.');
+                    return;
+                }
+                const knownPlayers = new Set(window.skatImportHelper.getPlayers());
+                let hasSerie2 = false;
+                let count = 0;
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const serie = String(data.serie);
+                    if (serie === '2') hasSerie2 = true;
+                    (data.spieler || []).forEach(s => {
+                        if (!s || !s.name) return;
+                        if (!knownPlayers.has(s.name)) {
+                            window.skatImportHelper.addPlayer(s.name, true);
+                            knownPlayers.add(s.name);
+                        }
+                        window.skatImportHelper.checkPlayer(s.name);
+                        window.skatImportHelper.setResult(s.name, serie, s.gesamtpunkte);
+                        count++;
+                    });
+                });
+                window.skatImportHelper.finalize(hasSerie2);
+                msgEl.textContent = `${count} Ergebnisse aus Firestore importiert (${snap.size} Tisch-Dokumente, ${heute}).`;
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+    </script>
 </body>
 </html>
