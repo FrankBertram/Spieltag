@@ -387,7 +387,8 @@ function loadPlayers(text) {
             }
         }
 
-        // NEU: Sortierung des Dropdowns in Serie 2 nach Serie-1-Ergebnis
+        // Dropdown-Logik: In Serie 2 auch noch fehlende Serie-1-Werte eintragbar machen.
+        // Option-Value-Format: "Name__S1" oder "Name__S2"
         function updatePlayerSelect(preselectNext = false) {
             const select = document.getElementById('playerSelect');
             const currentValue = select.value;
@@ -396,55 +397,57 @@ function loadPlayers(text) {
             let candidates = [];
 
             selectedPlayers.forEach(player => {
-                let needsInput = false;
+                const res1Empty = results[player].res1 === '';
+                const res2Empty = results[player].res2 === '';
+                const isEditing = editingPlayer === player;
+                const serie1Score = parseFloat(results[player].res1) || 0;
 
-                if (currentRound === 1 && results[player].res1 === '') {
-                    needsInput = true;
-                } else if (currentRound === 2 && results[player].res2 === '') {
-                    needsInput = true;
+                // Serie-1-Eintrag: fehlt res1, oder wird gerade Serie 1 korrigiert
+                if (res1Empty || (isEditing && editingSeries === 1)) {
+                    candidates.push({ name: player, serie: 1, score: serie1Score });
                 }
 
-                if (editingPlayer === player) {
-                    needsInput = true;
+                // Serie-2-Eintrag: nur in Serie-2-Modus, fehlt res2 oder Serie-2-Korrektur
+                if (currentRound === 2 && (res2Empty || (isEditing && editingSeries === 2))) {
+                    candidates.push({ name: player, serie: 2, score: serie1Score });
                 }
-
-                if (needsInput) {
-                    candidates.push({
-                        name: player,
-                        score: parseFloat(results[player].res1) || 0
-                    });
+                // Edge-Case: Serie-2-Korrektur während Serie-1-Modus (selten)
+                if (currentRound === 1 && isEditing && editingSeries === 2) {
+                    candidates.push({ name: player, serie: 2, score: serie1Score });
                 }
             });
 
-            // In Serie 2 nach Serie-1-Punkten absteigend sortieren
             if (currentRound === 2) {
-                candidates.sort((a, b) => b.score - a.score);
+                // Fehlende Serie 1 zuerst (alphabetisch), dann Serie 2 nach Serie-1-Punkten absteigend
+                candidates.sort((a, b) => {
+                    if (a.serie !== b.serie) return a.serie - b.serie;
+                    if (a.serie === 1) return a.name.localeCompare(b.name);
+                    return b.score - a.score;
+                });
             } else {
-                // In Serie 1 alphabetisch (oder wie bisher)
                 candidates.sort((a, b) => a.name.localeCompare(b.name));
             }
 
             candidates.forEach(c => {
                 const opt = document.createElement('option');
-                opt.value = c.name;
-                opt.textContent = c.name;
+                opt.value = `${c.name}__S${c.serie}`;
+                opt.textContent = c.serie !== currentRound ? `${c.name} (Serie ${c.serie})` : c.name;
                 select.appendChild(opt);
             });
 
             if (preselectNext && candidates.length > 0) {
-                let nextPlayer = null;
-                if (currentValue && candidates.find(c => c.name === currentValue)) {
-                    const index = candidates.findIndex(c => c.name === currentValue);
-                    nextPlayer = candidates[index + 1] || candidates[0];
+                let nextValue = null;
+                const idx = candidates.findIndex(c => `${c.name}__S${c.serie}` === currentValue);
+                if (idx >= 0) {
+                    const next = candidates[idx + 1] || candidates[0];
+                    nextValue = `${next.name}__S${next.serie}`;
                 } else {
-                    nextPlayer = candidates[0];
+                    nextValue = `${candidates[0].name}__S${candidates[0].serie}`;
                 }
-                if (nextPlayer) {
-                    select.value = nextPlayer.name;
-                    document.getElementById('currentResult').focus();
-                }
+                select.value = nextValue;
+                document.getElementById('currentResult').focus();
             } else if (editingPlayer) {
-                select.value = editingPlayer;
+                select.value = `${editingPlayer}__S${editingSeries || currentRound}`;
                 document.getElementById('currentResult').focus();
             }
 
@@ -459,10 +462,13 @@ function loadPlayers(text) {
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
                 document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done} von ${total} eingetragen` : '';
             } else if (currentRound === 2) {
-                const done = selectedPlayers.filter(p => results[p].res2 !== '').length;
+                const done2 = selectedPlayers.filter(p => results[p].res2 !== '').length;
+                const missing1 = selectedPlayers.filter(p => results[p].res1 === '').length;
                 const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
                 document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
-                document.getElementById('progress').textContent = total > 0 ? `Serie 2: ${done} von ${total} eingetragen` : '';
+                let txt = total > 0 ? `Serie 2: ${done2} von ${total} eingetragen` : '';
+                if (missing1 > 0) txt += ` · Serie 1 fehlt: ${missing1}`;
+                document.getElementById('progress').textContent = txt;
             }
         }
 
@@ -483,11 +489,16 @@ function loadPlayers(text) {
         }
 
         function saveCurrentResult() {
-            const selected = document.getElementById('playerSelect').value;
-            if (!selected) {
+            const selectedValue = document.getElementById('playerSelect').value;
+            if (!selectedValue) {
                 alert('Bitte einen Spieler wählen!');
                 return;
             }
+            // Neues Format "Name__S1"/"Name__S2"; Fallback für alte Zustände
+            const m = selectedValue.match(/^(.*)__S(\d)$/);
+            const selected = m ? m[1] : selectedValue;
+            const targetSerie = m ? parseInt(m[2], 10) : (editingSeries || currentRound);
+
             const value = document.getElementById('currentResult').value;
             if (value === '') {
                 alert('Bitte ein Ergebnis eingeben!');
@@ -496,14 +507,14 @@ function loadPlayers(text) {
 
             const numValue = parseFloat(value);
 
-            if (currentRound === 1 || editingSeries === 1) {
+            if (targetSerie === 1) {
                 results[selected].res1 = numValue;
-            } else if (currentRound === 2 || editingSeries === 2) {
+            } else if (targetSerie === 2) {
                 results[selected].res2 = numValue;
             }
 
             document.getElementById('message').textContent =
-                `Ergebnis Serie ${editingSeries || currentRound} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
+                `Ergebnis Serie ${targetSerie} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
 
             document.getElementById('currentResult').value = '';
             const wasEditing = editingPlayer !== null;
