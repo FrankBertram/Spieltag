@@ -148,7 +148,17 @@
         
         <div class="middle">
             <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
-            <button id="importBtn" onclick="importFromFirestore()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0 0 10px 0;">Aus Firestore laden</button>
+            <div id="importSection" style="display:none;align-items:center;gap:6px;margin:0 0 10px 0;flex-wrap:wrap;">
+                <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Aus Firestore laden</button>
+                <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                    <option value="">-- Spieltag --</option>
+                </select>
+            </div>
+            <div id="uploadSection" style="display:none;margin:0 0 10px 0;padding:6px;background:#f5f5f5;border-radius:4px;">
+                <label for="csvUpload" style="font-size:12px;color:#333;display:block;margin-bottom:3px;">CSV nachladen (Datum;Serie;Name;Punkte):</label>
+                <input type="file" id="csvUpload" accept=".csv,.txt" style="font-size:12px;">
+            </div>
             <div class="round-info" id="roundInfo">
                 Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
             </div>
@@ -218,10 +228,53 @@
                 localStorage.removeItem('skat_show_firestore');
             }
             if (localStorage.getItem('skat_show_firestore') === '1') {
-                const btn = document.getElementById('importBtn');
-                if (btn) btn.style.display = '';
+                const sec = document.getElementById('importSection');
+                if (sec) sec.style.display = 'flex';
+                const up = document.getElementById('uploadSection');
+                if (up) up.style.display = '';
+            }
+            // DatePicker auf heute vorbelegen
+            const dateInput = document.getElementById('importDate');
+            if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+
+            // Spieltag-Dropdown füllen: alle 2 Wochen ab 13.01.2026 (Dienstag = Spieltag 1)
+            const spieltagSelect = document.getElementById('spieltagSelect');
+            if (spieltagSelect) {
+                const start = new Date(Date.UTC(2026, 0, 13));
+                const todayIso = dateInput ? dateInput.value : '';
+                for (let i = 0; i < 24; i++) {
+                    const d = new Date(start);
+                    d.setUTCDate(d.getUTCDate() + i * 14);
+                    const iso = d.toISOString().slice(0, 10);
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getUTCFullYear();
+                    const opt = document.createElement('option');
+                    opt.value = iso;
+                    opt.textContent = `Spieltag ${i + 1} (${dd}.${mm}.${yyyy})`;
+                    if (iso === todayIso) opt.selected = true;
+                    spieltagSelect.appendChild(opt);
+                }
+                spieltagSelect.addEventListener('change', function() {
+                    if (this.value && dateInput) dateInput.value = this.value;
+                });
             }
         })();
+
+        document.getElementById('csvUpload').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                if (typeof window.uploadCsvToFirestore === 'function') {
+                    window.uploadCsvToFirestore(ev.target.result);
+                } else {
+                    alert('Firestore-Modul noch nicht geladen.');
+                }
+                e.target.value = ''; // reset damit selbe Datei nochmal wählbar ist
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
 
         function saveState() {
             const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
@@ -815,7 +868,7 @@ function updateRanking() {
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+        import { getFirestore, collection, query, where, getDocs, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
@@ -833,15 +886,16 @@ function updateRanking() {
                 alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
                 return;
             }
-            const heute = new Date().toISOString().slice(0, 10);
+            const dateInput = document.getElementById('importDate');
+            const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
             const msgEl = document.getElementById('message');
-            msgEl.textContent = 'Lade aus Firestore …';
+            msgEl.textContent = `Lade aus Firestore (${datum}) …`;
             try {
-                const q = query(collection(db, 'spieltage'), where('datum', '==', heute));
+                const q = query(collection(db, 'spieltage'), where('datum', '==', datum));
                 const snap = await getDocs(q);
                 if (snap.empty) {
                     msgEl.textContent = '';
-                    alert('Keine Firestore-Einträge für ' + heute + ' gefunden.');
+                    alert('Keine Firestore-Einträge für ' + datum + ' gefunden.');
                     return;
                 }
                 const knownPlayers = new Set(window.skatImportHelper.getPlayers());
@@ -863,11 +917,102 @@ function updateRanking() {
                     });
                 });
                 window.skatImportHelper.finalize(hasSerie2);
-                msgEl.textContent = `${count} Ergebnisse aus Firestore importiert (${snap.size} Tisch-Dokumente, ${heute}).`;
+                msgEl.textContent = `${count} Ergebnisse aus Firestore importiert (${snap.size} Tisch-Dokumente, ${datum}).`;
             } catch (err) {
                 console.error(err);
                 msgEl.textContent = '';
                 alert('Firestore-Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        function normalizeDate(d) {
+            d = (d || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+            const m = d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+            return null;
+        }
+
+        window.uploadCsvToFirestore = async function(csvText) {
+            const msgEl = document.getElementById('message');
+            // BOM entfernen
+            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
+            const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+            if (lines.length === 0) { alert('CSV ist leer.'); return; }
+            // Header-Erkennung: wenn erste Zeile "Datum" enthält → überspringen
+            const startIdx = /datum/i.test(lines[0]) ? 1 : 0;
+
+            const rows = [];
+            const problems = [];
+            for (let i = startIdx; i < lines.length; i++) {
+                const parts = lines[i].split(';').map(p => p.trim());
+                if (parts.length < 4) { problems.push(`Zeile ${i + 1}: zu wenige Spalten`); continue; }
+                const datum = normalizeDate(parts[0]);
+                const serie = String(parseInt(parts[1], 10));
+                const name = parts[2];
+                const punkte = parseFloat(parts[3].replace(',', '.'));
+                if (!datum) { problems.push(`Zeile ${i + 1}: Datum "${parts[0]}" ungültig`); continue; }
+                if (serie !== '1' && serie !== '2') { problems.push(`Zeile ${i + 1}: Serie "${parts[1]}" ungültig`); continue; }
+                if (!name) { problems.push(`Zeile ${i + 1}: Name fehlt`); continue; }
+                if (Number.isNaN(punkte)) { problems.push(`Zeile ${i + 1}: Punkte "${parts[3]}" ungültig`); continue; }
+                rows.push({ datum, serie, name, punkte });
+            }
+            if (rows.length === 0) {
+                alert('Keine gültigen Zeilen in der CSV gefunden.\n\n' + problems.slice(0, 10).join('\n'));
+                return;
+            }
+
+            // Gruppieren nach datum+serie
+            const groups = new Map();
+            for (const r of rows) {
+                const key = `${r.datum}||${r.serie}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(r);
+            }
+
+            msgEl.textContent = `Lade ${rows.length} Zeilen hoch …`;
+            let added = 0, skipped = 0;
+            try {
+                for (const [key, groupRows] of groups) {
+                    const [datum, serie] = key.split('||');
+                    const tisch0Id = `${datum}_S${serie}_T0`;
+                    const q = query(collection(db, 'spieltage'),
+                        where('datum', '==', datum), where('serie', '==', serie));
+                    const snap = await getDocs(q);
+
+                    const existing = new Set();
+                    let tisch0ExistingPlayers = [];
+                    snap.forEach(d => {
+                        const data = d.data();
+                        (data.spieler || []).forEach(s => { if (s && s.name) existing.add(s.name); });
+                        if (d.id === tisch0Id) tisch0ExistingPlayers = data.spieler || [];
+                    });
+
+                    const newEntries = [];
+                    for (const r of groupRows) {
+                        if (existing.has(r.name)) { skipped++; continue; }
+                        newEntries.push({ name: r.name, gesamtpunkte: r.punkte });
+                        existing.add(r.name);
+                    }
+                    if (newEntries.length === 0) continue;
+
+                    const merged = [...tisch0ExistingPlayers, ...newEntries];
+                    await setDoc(doc(db, 'spieltage', tisch0Id), {
+                        datum, serie, tisch: '0',
+                        spieler: merged,
+                        spielerAnzahl: merged.length,
+                        gespeichertAm: new Date().toISOString()
+                    });
+                    added += newEntries.length;
+                }
+                let txt = `${added} Spieler nachgeladen, ${skipped} übersprungen (bereits vorhanden).`;
+                if (problems.length) txt += ` ${problems.length} fehlerhafte Zeile(n) – siehe Konsole.`;
+                msgEl.textContent = txt;
+                if (problems.length) console.warn('CSV-Probleme:', problems);
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err));
             }
         };
     </script>
