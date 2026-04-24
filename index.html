@@ -148,7 +148,7 @@
         
         <div class="middle">
             <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
-            <button onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0 0 10px 0;">Aus Firestore laden</button>
+            <button id="importBtn" onclick="importFromFirestore()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0 0 10px 0;">Aus Firestore laden</button>
             <div class="round-info" id="roundInfo">
                 Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
             </div>
@@ -207,6 +207,21 @@
 	        year: 'numeric'
 	});
       	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
+
+        // Firestore-Import-Button nur auf freigeschalteten Geräten zeigen.
+        // Freischalten: Seite einmal mit ?firestore=1 aufrufen. Abschalten: ?firestore=0.
+        (function() {
+            const params = new URLSearchParams(location.search);
+            if (params.get('firestore') === '1') {
+                localStorage.setItem('skat_show_firestore', '1');
+            } else if (params.get('firestore') === '0') {
+                localStorage.removeItem('skat_show_firestore');
+            }
+            if (localStorage.getItem('skat_show_firestore') === '1') {
+                const btn = document.getElementById('importBtn');
+                if (btn) btn.style.display = '';
+            }
+        })();
 
         function saveState() {
             const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
@@ -428,10 +443,14 @@ function loadPlayers(text) {
                 candidates.sort((a, b) => a.name.localeCompare(b.name));
             }
 
+            const hasSerie1 = candidates.some(c => c.serie === 1);
+            const hasSerie2 = candidates.some(c => c.serie === 2);
+            const mixed = hasSerie1 && hasSerie2;
+
             candidates.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = `${c.name}__S${c.serie}`;
-                opt.textContent = c.serie !== currentRound ? `${c.name} (Serie ${c.serie})` : c.name;
+                opt.textContent = (mixed || c.serie !== currentRound) ? `${c.name} (S${c.serie})` : c.name;
                 select.appendChild(opt);
             });
 
@@ -445,13 +464,25 @@ function loadPlayers(text) {
                     nextValue = `${candidates[0].name}__S${candidates[0].serie}`;
                 }
                 select.value = nextValue;
+                updatePlaceholderForSelection();
                 document.getElementById('currentResult').focus();
             } else if (editingPlayer) {
                 select.value = `${editingPlayer}__S${editingSeries || currentRound}`;
+                updatePlaceholderForSelection();
                 document.getElementById('currentResult').focus();
+            } else {
+                updatePlaceholderForSelection();
             }
 
             checkRoundComplete();
+        }
+
+        function updatePlaceholderForSelection() {
+            const val = document.getElementById('playerSelect').value;
+            const m = val.match(/^(.*)__S(\d)$/);
+            const input = document.getElementById('currentResult');
+            const serie = m ? m[2] : String(currentRound);
+            input.placeholder = `Ergebnis Serie ${serie} eintragen`;
         }
 
         function checkRoundComplete() {
@@ -731,6 +762,7 @@ function updateRanking() {
         }
 
         document.getElementById('playerSelect').addEventListener('change', function() {
+            updatePlaceholderForSelection();
             if (this.value) {
                 document.getElementById('currentResult').focus();
             }
