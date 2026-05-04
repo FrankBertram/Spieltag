@@ -851,6 +851,17 @@ function updateRanking() {
                 if (serie === '1') results[name].res1 = num;
                 else if (serie === '2') results[name].res2 = num;
             },
+            hasAnyResults: () => allPlayers.some(p => results[p] && (results[p].res1 !== '' || results[p].res2 !== '')),
+            resetAll: () => {
+                allPlayers.forEach(p => {
+                    results[p] = { res1: '', res2: '' };
+                    const cb = document.getElementById('cb_' + p);
+                    if (cb) cb.checked = false;
+                });
+                currentRound = 1;
+                editingPlayer = null;
+                editingSeries = null;
+            },
             finalize: (hasSerie2) => {
                 selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
                 if (hasSerie2) {
@@ -953,6 +964,13 @@ function updateRanking() {
                     alert('Keine Firestore-Einträge für ' + datum + ' gefunden.');
                     return;
                 }
+                if (window.skatImportHelper.hasAnyResults()) {
+                    if (!confirm('Vorhandene Ergebnisse werden vor dem Import entfernt. Fortfahren?')) {
+                        msgEl.textContent = '';
+                        return;
+                    }
+                }
+                window.skatImportHelper.resetAll();
                 const knownPlayers = new Set(window.skatImportHelper.getPlayers());
                 let hasSerie2 = false;
                 let count = 0;
