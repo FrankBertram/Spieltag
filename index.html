@@ -867,7 +867,7 @@ function updateRanking() {
         };
     </script>
     <div class="footer">
-    © 2026 by Frank Bertram (V6)
+    © 2026 by Frank Bertram (V1.7)
     </div>
 
     <script type="module">
@@ -914,7 +914,6 @@ function updateRanking() {
             signInWithPopup(auth, provider).then(result => {
                 const u = result.user;
                 console.log('Angemeldet:', u.displayName, u.email, 'UID:', u.uid);
-                alert(`Angemeldet als ${u.displayName || u.email}\nUID: ${u.uid}\n\nDiese UID in die Firestore-Rule eintragen.`);
             }).catch(err => {
                 console.error('Login-Fehler:', err);
                 alert('Login fehlgeschlagen: ' + (err && err.message ? err.message : err));
@@ -1065,6 +1064,7 @@ function updateRanking() {
                 if (problems.length) txt += ` ${problems.length} fehlerhafte Zeile(n) – siehe Konsole.`;
                 msgEl.textContent = txt;
                 if (problems.length) console.warn('CSV-Probleme:', problems);
+                alert('CSV-Upload erfolgreich.\n\n' + txt);
             } catch (err) {
                 console.error(err);
                 msgEl.textContent = '';
