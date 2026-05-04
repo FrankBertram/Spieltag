@@ -873,7 +873,7 @@ function updateRanking() {
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
         import { getFirestore, collection, query, where, getDocs, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
@@ -887,17 +887,6 @@ function updateRanking() {
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-
-        // Nach Rückkehr vom Google-Redirect: UID einmal anzeigen, damit sie in die Rule eingetragen werden kann.
-        getRedirectResult(auth).then(result => {
-            if (result && result.user) {
-                const u = result.user;
-                console.log('Angemeldet:', u.displayName, u.email, 'UID:', u.uid);
-                alert(`Angemeldet als ${u.displayName || u.email}\nUID: ${u.uid}\n\nDiese UID in die Firestore-Rule eintragen.`);
-            }
-        }).catch(err => {
-            console.error('Redirect-Login-Fehler:', err);
-        });
 
         onAuthStateChanged(auth, user => {
             const statusEl = document.getElementById('authStatus');
@@ -922,7 +911,14 @@ function updateRanking() {
         });
 
         window.signInGoogle = function() {
-            signInWithRedirect(auth, provider);
+            signInWithPopup(auth, provider).then(result => {
+                const u = result.user;
+                console.log('Angemeldet:', u.displayName, u.email, 'UID:', u.uid);
+                alert(`Angemeldet als ${u.displayName || u.email}\nUID: ${u.uid}\n\nDiese UID in die Firestore-Rule eintragen.`);
+            }).catch(err => {
+                console.error('Login-Fehler:', err);
+                alert('Login fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            });
         };
         window.signOutGoogle = function() {
             signOut(auth);
