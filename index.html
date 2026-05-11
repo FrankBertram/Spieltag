@@ -751,19 +751,18 @@ function updateRanking() {
         function neustart() {
             if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
             localStorage.removeItem('skat_state');
-            // Ergebnisse zurücksetzen, Spielerliste und Gäste behalten
-            allPlayers.forEach(name => {
-                results[name] = { res1: '', res2: '' };
-            });
-            // Alle Spieler wieder anwählen
-            allPlayers.forEach(p => {
-                const cb = document.getElementById('cb_' + p);
-                if (cb) cb.checked = true;
-            });
             currentRound = 1;
             editingPlayer = null;
             editingSeries = null;
-            updateSelectedPlayers();
+            // Spielerliste frisch aus Mitspieler.txt laden (entfernt Gäste/importierte Spieler).
+            // Fallback: Datei nicht erreichbar → vorhandene Liste ohne Gäste übernehmen.
+            fetch('Mitspieler.txt')
+                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(text => loadPlayers(text))
+                .catch(() => {
+                    const regulars = allPlayers.filter(p => !guests.has(p));
+                    loadPlayers(regulars.join('\n'));
+                });
         }
 
         function exportToCSV() {
