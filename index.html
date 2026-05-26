@@ -1,1134 +1,2215 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" type="image/png" href="Skat.png">
-    <link rel="apple-touch-icon" href="Skat.png">
-    <title>Mitspieler und Ergebnisse (2 Serien)</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 0px;
-            flex-wrap: wrap;
-        }
-        .header img {
-            height: 50px;
-            width: auto;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 2em;
-        }
-		.footer {
-			position: fixed;
-			right: 20px;
-			bottom: 10px;
-			font-size: 12px;
-			color: #666;
-		}        
-        .container { display: flex; gap: 10px; flex-wrap: wrap; }
-        .left, .middle, .right { background: white; padding: 10px 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .left { flex: 0 0 180px; }
-        .middle { flex: 0 0 180px; }
-        .right { flex: 1; min-width: 400px; }
-        input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
-        button { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
-        button:hover { background: #45a049; }
-        button:disabled { background: #aaa; cursor: not-allowed; }
-        button.add-player { background: #2196F3; margin-top: 20px; }
-        button.add-player:hover { background: #0b7dda; }
-        button.edit-btn { background: #ff9800; padding: 5px 8px; font-size: 12px; width: auto; margin: 0 5px; }
-        button.edit-btn:hover { background: #e68a00; }
-        button.export-btn { background: #2196F3; margin-top: 20px; }
-        button.export-btn:hover { background: #0b7dda; }
-        .checkbox-list { max-height: 1000px; overflow-y: auto; margin: 15px 0; }
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-        }
-        .checkbox-item input[type="checkbox"] {
-            margin-right: 12px;
-            transform: scale(1.3);
-        }
-        .checkbox-item label {
-            margin: 0;
-            cursor: pointer;
-            flex: 1;
-            word-wrap: break-word;
-        }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; border: 1px solid #ddd; vertical-align: middle; }
-        th { background: #f2f2f2; }
-        th:nth-child(1), td:nth-child(1) { width: 40px; text-align: right; }
-        th:nth-child(2), td:nth-child(2) { width: 180px;  text-align: left; }
-        th:nth-child(3), td:nth-child(3) { text-align: right; }
-        th:nth-child(4), td:nth-child(4) { width: 20px; text-align: right; }
-        th:nth-child(5), td:nth-child(5) { text-align: right; }
-        th:nth-child(6), td:nth-child(6) { text-align: right; }
-        .edit-cell { display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
-        #message { color: green; margin-top: 10px; font-weight: bold; }
-        .round-info { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
-        #addPlayerSection { display: none; width: 160px; margin-top: 10px; }
-        #exportSection { display: none; margin-top: 20px; }
-		#currentResult {
-			width: 160px;      /* Schmal statt 100% */
-			display: inline-block;
-			margin-right: 10px;
-		}
-		
-		#playerSelect {
-			width: 180px;      /* Dropdown passend */
-			display: inline-block;
-		}        
-		#fileInput {  /* File-Input-Container */
-			margin-bottom: 5px;  /* Mehr Abstand unterhalb */
-			padding: 0px;
-		}
-		
-		.container {
-			margin-top: 5px;  /* Abstand oberhalb Panels */
-		}		
-		
-.file-block {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 0px;
-    background: white;
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    z-index: 20;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sintherner Skatclub - Skatliste</title>
+  <link rel="icon" type="image/png" href="Skat.png">
+  <link rel="apple-touch-icon" href="Skat.png">
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
+      authDomain: "skatverein-b77ef.firebaseapp.com",
+      projectId: "skatverein-b77ef",
+      storageBucket: "skatverein-b77ef.firebasestorage.app",
+      messagingSenderId: "763387283518",
+      appId: "1:763387283518:web:9edf27d79876cf2059296f"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window.__firestore = { db, doc, setDoc, getDoc };
+  </script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, Helvetica, sans-serif;  /* Offline-fähig, kein Google Fonts nötig */
+      font-size: 14px;  /* Etwas größer für Touch (13px → 14px) */
+      margin: 15px;
+      touch-action: manipulation;  /* Doppel-Tipp-Zoom deaktivieren */
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .header span { font-weight: bold; }
+    table {
+      border-collapse: collapse;
+      width: 780px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 3px 4px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #eee;
+      font-size: 13px;
+      line-height: 1.1;
+    }
+	.header label {
+	  cursor: pointer;
+	  margin-right: 10px;
+	  font-size: 10px;
+	}
+
+	.header input[type="radio"] {
+	  margin-right: 4px;
+	}
+
+    .player-name {
+      width: 90px;
+      text-align: left;
+      padding-left: 6px;
+    }
+	.rechts {
+	  text-align: right !important;
+	}
+
+.neuer-eintrag-btn {
+  background: #FFF9C4 !important;
+  color: #000 !important;
+  border: 2px solid #F57F17 !important;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
 }
 
-.header {
-    position: relative;  /* Für absolute Positionierung */
-    padding-right: 450px;  /* Platz für File-Block */
-    min-height: 50px;
-}		
-		.thick-line {border-top: 3px solid #333 !important;}
-    </style>
+.neuer-eintrag-btn:hover {
+  background: #FFF176 !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(245,127,23,0.3);
+}
+
+.neuer-eintrag-btn:active {
+  transform: translateY(0); box-shadow: 0 2px 4px rgba(76,175,80,0.3);
+}
+
+.radio-group {
+  display: flex;
+  gap: 3px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: #f5f5f5;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  max-width: 200px;
+}
+
+.radio-label {
+  white-space: nowrap;
+  gap: 2px;
+  font-size: 16px;
+}
+.radio-group-compact {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0px;
+  padding: 1px 2px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: #f5f5f5;
+  max-width: 300px;
+  align-items: center;
+  height: 34px;
+}
+
+.radio-group-compact .radio-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0px 3px;
+  height: 100%;
+}
+
+.radio-label input[type="radio"] {
+  margin: 0 4px 0 0;
+  height: 14px;
+  width: 14px;
+  vertical-align: middle;
+}
+
+.radio-label:hover {
+  background: #e8e8e8;
+}
+
+    .gew-verl {
+      font-size: 9px;
+      line-height: 1;
+    }
+
+    .edit-btn {
+      font-size: 10px;
+      padding: 1px 1px;
+      cursor: pointer;
+      background: orange;
+      color: white;
+      border: 1px solid #888;
+    }
+    .spitzen-btn {
+      padding: 12px 20px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid #888;
+      cursor: pointer;
+      background: #f5f5f5;
+      min-width: 200px;
+    }
+
+    .spitzen-btn.active {
+      background: #2196F3;
+      color: white;
+      font-weight: bold;
+    }
+
+    .spielwert-spalte {
+	  min-width: 30px;
+	  width: 30px;
+	  text-align: right;
+	}
+
+    .spitze-btn {
+      padding: 8px 14px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid #888;
+      background: #f5f5f5;
+      cursor: pointer;
+      min-width: 50px;
+    }
+
+    .spitze-btn.active {
+      background: #2196F3;
+      color: white;
+      font-weight: bold;
+    }
+
+    .gw-btn {
+      display: inline-block;
+      margin-right: 5px;
+      font-size: 15px;
+      padding: 2px 10px;
+      cursor: pointer;
+      border-radius: 6px;
+      height: 80px;
+      min-width: 95px;
+      box-sizing: border-box;
+      border: 1px solid #888;
+      background-color: #fff;
+      color: #000;
+      font-weight: normal;
+      line-height: normal;
+      width: auto;
+      overflow: hidden;
+    }
+
+    .gw-btn.active {
+      background: #4CAF50;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .result-row td {
+      background-color: #f8f8f8;
+      font-weight: bold;
+    }
+    .money-row {
+      display: flex;
+      gap: 20px;
+      justify-content: flex-start;
+      margin: 8px 0;
+    }
+    .money-row input {
+      width: 90px;
+      text-align: right;
+    }
+    .signature {
+      margin-top: 30px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .vertical {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      white-space: nowrap;
+    }
+
+	.vertical-left {
+	  vertical-align: bottom;
+	  text-align: left !important;
+	}
+
+	.vertical-left span {
+	  writing-mode: vertical-lr;
+	  -webkit-writing-mode: vertical-lr;
+	  text-orientation: mixed;
+	  -webkit-text-orientation: mixed;
+	  display: inline-block;
+	  white-space: nowrap;
+	}
+
+	/* Mindestbreite für die schmalen Spalten:
+	   mit Spitzen, ohne Spitzen, Hand, Schneider, Schn.ang, Schwarz, Schw.ang, Offen */
+	#skat-table tbody td:nth-child(n+3):nth-child(-n+10),
+	#skat-table thead tr:nth-child(2) th:nth-child(-n+6),
+	#skat-table thead tr:nth-child(1) th:nth-child(3),
+	#skat-table thead tr:nth-child(1) th:nth-child(4) {
+	  min-width: 14px;
+	}
+
+.unten {
+  vertical-align: bottom !important;
+  text-align: center;
+  padding-bottom: 2px;
+}
+
+    input[type="text"] {
+      border: none;
+      border-bottom: 1px solid #333;
+      background: transparent;
+    }
+
+    #skat-table thead th {
+      position: -webkit-sticky;
+      position: sticky;
+      background: #f0f0f0;
+      border-bottom: 2px solid #ccc;
+      text-align: center;
+	  font-size: 11px;
+	  font-weight: 400;
+	  color: black;
+      padding: 4px 6px;
+      z-index: 2;
+    }
+
+    #skat-table thead tr:nth-child(1) th {
+      top: 1px;
+      z-index: 3;
+    }
+
+    #skat-table thead tr:nth-child(2) th {
+      top: 35px;
+      z-index: 2;
+    }
+
+    #skat-table tfoot {
+      position: static;
+      bottom: auto;
+      z-index: auto;
+    }
+
+    #skat-table tfoot td {
+      background: #f0f0f0;
+      border-top: 2px solid #ccc;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    /* Spielliste: schmalere Body-Margins im Handy-Querformat,
+       damit die Tabelle die komplette Breite nutzen kann */
+    @media (max-height: 500px) and (orientation: landscape) {
+      body { margin: 4px !important; }
+      /* feste Tabellen-Natural-Width erzwingen, damit Skalierung greift */
+      #skat-table { min-width: 1100px; }
+      /* kein horizontales Scrollen erlauben */
+      .table-wrapper { overflow-x: hidden !important; }
+      /* Tabellen-Zellen größer und fett (Kopf bleibt wie vorher) */
+      #skat-table tbody td,
+      #skat-table tfoot td,
+      #skat-table tfoot th {
+        font-size: 16px !important;
+        font-weight: bold !important;
+      }
+    }
+
+    /* Handy-Hochformat: Liste ausblenden, Hinweis anzeigen */
+    @media (max-width: 500px) and (orientation: portrait) {
+      body > *:not(#portrait-warning) { display: none !important; }
+      #portrait-warning { display: flex !important; }
+    }
+
+    /* Kompaktes Dialog-Layout für Handy-Querformat */
+    @media (max-height: 500px) and (orientation: landscape) {
+      #spiel-dialog {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        padding: 6px !important;
+        margin: 0 !important;
+        max-height: 100vh;
+        overflow-y: auto;
+        font-size: 12px !important;
+        box-sizing: border-box;
+      }
+      #spiel-dialog form { gap: 4px !important; }
+      #spiel-dialog h3 { font-size: 14px !important; }
+
+      /* Immer sichtbare Reihen: volle Breite */
+      #spiel-dialog #player-buttons,
+      #spiel-dialog #grundwert-buttons,
+      #spiel-dialog #gewinnstufen-buttons {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      /* Spitzen-Reihen: NICHT display erzwingen — JS steuert ein/aus */
+      #spiel-dialog #spitzen-buttons,
+      #spiel-dialog #spitzen-anzahl {
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      #spiel-dialog #player-buttons > *,
+      #spiel-dialog #grundwert-buttons > button,
+      #spiel-dialog #spitzen-buttons > button,
+      #spiel-dialog #spitzen-anzahl > *,
+      #spiel-dialog #gewinnstufen-buttons > button {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Alle Buttonreihen gleiche Höhe */
+      #spiel-dialog #player-buttons,
+      #spiel-dialog #gewinnstufen-buttons,
+      #spiel-dialog #grundwert-buttons,
+      #spiel-dialog #spitzen-buttons,
+      #spiel-dialog #spitzen-anzahl {
+        height: 50px !important;
+        min-height: 50px !important;
+      }
+      #spiel-dialog #player-buttons > *,
+      #spiel-dialog #gewinnstufen-buttons > button,
+      #spiel-dialog #grundwert-buttons > button,
+      #spiel-dialog #spitzen-buttons > button,
+      #spiel-dialog #spitzen-anzahl > * {
+        height: 50px !important;
+        font-size: 14px !important;
+      }
+      #spiel-dialog #grundwert-buttons button:nth-child(n+2):nth-child(-n+5) {
+        font-size: 32px !important;
+      }
+
+      /* Untere Buttonreihe: Gewonnen/Verloren/Eingepasst */
+      #spiel-dialog form > div[style*="margin-top:20px"] {
+        margin-top: 4px !important;
+        gap: 6px !important;
+      }
+      #spiel-dialog #btn-gewonnen,
+      #spiel-dialog #btn-verloren,
+      #spiel-dialog #btn-eingepasst {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        height: 50px !important;
+        font-size: 16px !important;
+      }
+    }
+
+    /* Sehr kurzer Viewport (z.B. iPhone 8 Querformat ≤ 400px Höhe):
+       Reihen und Abstände kompakter, damit alles ohne Scrollen passt */
+    @media (max-height: 400px) and (orientation: landscape) {
+      #spiel-dialog {
+        padding: 3px !important;
+        font-size: 11px !important;
+      }
+      #spiel-dialog form { gap: 2px !important; }
+      #spiel-dialog h3 { font-size: 12px !important; }
+
+      #spiel-dialog #player-buttons,
+      #spiel-dialog #gewinnstufen-buttons,
+      #spiel-dialog #grundwert-buttons,
+      #spiel-dialog #spitzen-buttons,
+      #spiel-dialog #spitzen-anzahl {
+        height: 40px !important;
+        min-height: 40px !important;
+      }
+      #spiel-dialog #player-buttons > *,
+      #spiel-dialog #gewinnstufen-buttons > button,
+      #spiel-dialog #grundwert-buttons > button,
+      #spiel-dialog #spitzen-buttons > button,
+      #spiel-dialog #spitzen-anzahl > * {
+        height: 40px !important;
+        font-size: 12px !important;
+      }
+      #spiel-dialog #grundwert-buttons button:nth-child(n+2):nth-child(-n+5) {
+        font-size: 26px !important;
+      }
+      #spiel-dialog form > div[style*="margin-top:20px"] {
+        margin-top: 2px !important;
+        gap: 4px !important;
+      }
+      #spiel-dialog #btn-gewonnen,
+      #spiel-dialog #btn-verloren,
+      #spiel-dialog #btn-eingepasst {
+        height: 40px !important;
+        font-size: 13px !important;
+      }
+    }
+
+  </style>
 </head>
 <body>
 
-    <div class="header">
-        <img src="Skat.png" alt="Skat-Logo">
-        <h3>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h3>
-        <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:8px;">
-            <label for="fileInput" style="margin:0;white-space:nowrap;font-size:12px;font-family:Arial,sans-serif;position:relative;top:-2px;">Mitspieler:</label>
-            <input type="file" id="fileInput" accept=".txt" style="font-size:12px;font-family:Arial,sans-serif;">
-            <button onclick="neustart()" style="background:#e53935;color:white;padding:2px 8px;border:none;border-radius:3px;cursor:pointer;font-size:12px;font-family:Arial,sans-serif;white-space:nowrap;line-height:1.4;position:relative;top:-8px;">Neustart</button>
-        </div>
-    </div>
-    
-    <div class="container">
-        <div class="left">
-            <h3>Mitspieler wählen</h3>
-            <div style="display:flex;gap:5px;margin-bottom:5px;">
-                <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
-                <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
-            </div>
-            <div class="checkbox-list" id="playerCheckboxes"></div>
-            
-            <button class="add-player" onclick="showAddPlayer()">Gast hinzufügen</button>
-            
-            <div id="addPlayerSection">
-                <input type="text" id="newPlayerName" placeholder="Name eingeben">
-                <button onclick="addNewPlayer()">Hinzufügen</button>
-            </div>
-        </div>
-        
-        <div class="middle">
-            <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
-            <div id="importSection" style="display:none;align-items:center;gap:6px;margin:0 0 10px 0;flex-wrap:wrap;">
-                <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Aus Firestore laden</button>
-                <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
-                <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
-                    <option value="">-- Spieltag --</option>
-                </select>
-                <button id="signInBtn" onclick="signInGoogle()" style="background:#424242;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Anmelden</button>
-                <button id="signOutBtn" onclick="signOutGoogle()" style="display:none;background:#9e9e9e;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Abmelden</button>
-                <button id="copyUidBtn" onclick="copyUid()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">UID kopieren</button>
-                <span id="authStatus" style="font-size:12px;color:#888;">nicht angemeldet</span>
-            </div>
-            <div id="uploadSection" style="display:none;margin:0 0 10px 0;padding:6px;background:#f5f5f5;border-radius:4px;">
-                <label for="csvUpload" style="font-size:12px;color:#333;display:block;margin-bottom:3px;">CSV nachladen (Datum;Serie;Name;Punkte):</label>
-                <input type="file" id="csvUpload" accept=".csv,.txt" style="font-size:12px;">
-            </div>
-            <div class="round-info" id="roundInfo">
-                Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
-            </div>
-            <p id="progress" style="font-size:13px;color:#555;margin:5px 0;"></p>
-            
-            <select id="playerSelect">
-                <option value="">-- Spieler wählen --</option>
-            </select>
-            
-            <input type="number" inputmode="decimal" id="currentResult" placeholder="Ergebnis eintragen">
-            
-            <button onclick="saveCurrentResult()">Speichern und nächsten wählen</button>
-            
-            <button id="startRound2" onclick="startRound2()" style="display:none; background:#ff9800;">
-                Serie 2 starten
-            </button>
-            
-            <p id="message"></p>
+<div id="portrait-warning" style="display:none; position:fixed; inset:0; background:#fff; z-index:9999;
+     align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:20px;">
+  <img src="Skat.png" alt="Skat-Logo" style="height:140px; margin-bottom:30px;">
+  <div style="font-size:60px; margin-bottom:20px;">📱 ↻</div>
+  <div style="font-size:32px; font-weight:bold; line-height:1.3;">Bitte<br>Querformat<br>anwenden</div>
+</div>
 
-            <div id="exportSection">
-                <button class="export-btn" onclick="exportToCSV()">Endstand als CSV exportieren</button>
-            </div>
-        </div>
-        
-        <div class="right">
-            <h3 id="rankingTitle">Zwischenstand nach Serie 1</h3>
-            <table id="rankingTable">
-                <thead>
-                    <tr>
-                        <th>Rang</th>
-                        <th>Name</th>
-                        <th>Serie 1</th>
-			<th>T.</th>
-                        <th>Serie 2</th>
-                        <th>Gesamt</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+<button id="zoom-reset-btn" onclick="resetZoom()"
+        title="Darstellung zurücksetzen"
+        style="position:fixed; top:6px; right:6px; z-index:9000;
+               width:36px; height:36px; border-radius:50%;
+               border:1px solid #888; background:#f5f5f5;
+               font-size:18px; cursor:pointer; line-height:1;
+               box-shadow:0 2px 5px rgba(0,0,0,0.2);">↻</button>
+
+<div class="header">
+  <!-- Zeile 1: Logo + Verein -->
+  <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 0px;">
+    <img src="Skat.png" alt="Skat-Logo" style="height: 40px;">
+    <span style="font-size:20px; font-weight: bold;">1. Sintherner Skatclub 1992 e.V.</span>
+  </div>
+  <br>
+
+  <!-- Zeile 2: Auswahlbuttons -->
+  <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+    <span>Spieler:</span>
+    <div class="radio-group radio-group-compact">
+      <label class="radio-label"><input type="radio" name="spieleranzahl" value="4" checked>4</label>
+      <label class="radio-label"><input type="radio" name="spieleranzahl" value="3">3</label>
     </div>
 
-    <script>
-        let allPlayers = [];
-        let selectedPlayers = [];
-        let results = {};
-        let currentRound = 1;
-        let editingPlayer = null;
-        let editingSeries = null;
-        let guests = new Set();
+    <span>Serie:</span>
+    <div class="radio-group radio-group-compact">
+      <label class="radio-label"><input type="radio" name="serie" value="1" checked>1.</label>
+      <label class="radio-label"><input type="radio" name="serie" value="2">2.</label>
+    </div>
 
-	const datum = new Date();
-        const datumText = datum.toLocaleDateString('de-DE', {
-	        day: '2-digit',
-        	month: '2-digit',
-	        year: 'numeric'
-	});
-      	document.getElementById('aktuelles-datum').textContent = ' – ' + datumText;
+    <span>Tisch:</span>
+    <select id="tisch-auswahl" style="font-size:16px; padding:4px 8px; border-radius:4px; border:1px solid #888; height:34px;">
+      <option value="1" selected>1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+    </select>
 
-        // Firestore-Import-Button nur auf freigeschalteten Geräten zeigen.
-        // Freischalten: Seite einmal mit ?firestore=1 aufrufen. Abschalten: ?firestore=0.
-        (function() {
-            const params = new URLSearchParams(location.search);
-            if (params.get('firestore') === '1') {
-                localStorage.setItem('skat_show_firestore', '1');
-            } else if (params.get('firestore') === '0') {
-                localStorage.removeItem('skat_show_firestore');
-            }
-            if (localStorage.getItem('skat_show_firestore') === '1') {
-                const sec = document.getElementById('importSection');
-                if (sec) sec.style.display = 'flex';
-                const up = document.getElementById('uploadSection');
-                if (up) up.style.display = '';
-            }
-            // DatePicker auf heute vorbelegen
-            const dateInput = document.getElementById('importDate');
-            if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
-
-            // Spieltag-Dropdown füllen: alle 2 Wochen ab 13.01.2026 (Dienstag = Spieltag 1)
-            const spieltagSelect = document.getElementById('spieltagSelect');
-            if (spieltagSelect) {
-                const start = new Date(Date.UTC(2026, 0, 13));
-                const todayIso = dateInput ? dateInput.value : '';
-                for (let i = 0; i < 24; i++) {
-                    const d = new Date(start);
-                    d.setUTCDate(d.getUTCDate() + i * 14);
-                    const iso = d.toISOString().slice(0, 10);
-                    const dd = String(d.getUTCDate()).padStart(2, '0');
-                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                    const yyyy = d.getUTCFullYear();
-                    const opt = document.createElement('option');
-                    opt.value = iso;
-                    opt.textContent = `Spieltag ${i + 1} (${dd}.${mm}.${yyyy})`;
-                    if (iso === todayIso) opt.selected = true;
-                    spieltagSelect.appendChild(opt);
-                }
-                spieltagSelect.addEventListener('change', function() {
-                    if (this.value && dateInput) dateInput.value = this.value;
-                });
-            }
-        })();
-
-        document.getElementById('csvUpload').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = ev => {
-                if (typeof window.uploadCsvToFirestore === 'function') {
-                    window.uploadCsvToFirestore(ev.target.result);
-                } else {
-                    alert('Firestore-Modul noch nicht geladen.');
-                }
-                e.target.value = ''; // reset damit selbe Datei nochmal wählbar ist
-            };
-            reader.readAsText(file, 'UTF-8');
-        });
-
-        function saveState() {
-            const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
-            localStorage.setItem('skat_state', JSON.stringify({
-                allPlayers, selectedPlayers: checked, results, currentRound, guests: [...guests]
-            }));
-        }
-
-        function restoreState() {
-            const raw = localStorage.getItem('skat_state');
-            if (!raw) return false;
-            try {
-                const state = JSON.parse(raw);
-                if (!state.allPlayers || state.allPlayers.length === 0) return false;
-                state.allPlayers.forEach(name => addPlayerToList(name));
-                // Checkboxen gemäß gespeichertem Zustand setzen
-                const checkedSet = new Set(state.selectedPlayers || []);
-                allPlayers.forEach(p => {
-                    const cb = document.getElementById('cb_' + p);
-                    if (cb) cb.checked = checkedSet.has(p);
-                });
-                // Ergebnisse wiederherstellen
-                Object.keys(state.results || {}).forEach(name => {
-                    if (results[name]) {
-                        results[name].res1 = state.results[name].res1;
-                        results[name].res2 = state.results[name].res2;
-                    }
-                });
-                currentRound = state.currentRound || 1;
-                guests = new Set(state.guests || []);
-                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
-                updatePlayerSelect(true);
-                if (currentRound === 2) {
-                    startRound2();
-                } else {
-                    setupRound1();
-                }
-                updateRanking();
-                checkRoundComplete();
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        if (!restoreState()) {
-            fetch('Mitspieler.txt')
-                .then(r => r.ok ? r.text() : Promise.reject())
-                .then(text => loadPlayers(text))
-                .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
-        }
+    <span>Spiele:</span>
+    <div id="karten-auswahl" class="radio-group radio-group-compact">
+      <label class="radio-label"><input type="radio" name="karten" value="36" checked>36</label>
+      <label class="radio-label"><input type="radio" name="karten" value="48">48</label>
+    </div>
+  </div>
+</div>
 
 
-        document.getElementById('fileInput').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => loadPlayers(ev.target.result);
-                reader.readAsText(file);
-            }
-        });
+<div id="spieler-buttons-container" style="margin-bottom:10px; display:flex; gap:10px;">
+  <div id="player-btn-container-1"></div>
+  <div id="player-btn-container-2"></div>
+  <div id="player-btn-container-3"></div>
+  <div id="player-btn-container-4"></div>
+  <div id="csv-export-container"></div>
+  <div id="neu-start-container"></div>
+</div>
+
+<div class="table-wrapper" style="max-height:600px; overflow-y:auto; overflow-x:auto; width:100%; max-width:100%;">
+  <table id="skat-table">
+  <thead id="skat-thead">
+  </thead>
+  <tbody id="game-rows">
+  </tbody>
+  <tfoot id="skat-tfoot">
+  </tfoot>
+</table>
+</div>
+
+<dialog id="spiel-dialog" style="padding:20px; border-radius:8px; width:625px; max-width:90%; font-size:15px;">
+  <form method="dialog" id="spiel-form" style="display:flex; flex-direction:column; gap:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:0 0 5px 0;">
+      <div style="width:32px;"></div>
+      <h3 style="margin:0; text-align:center; flex:1;">Spiel eintragen:  <span id="spielnummer-display"></span> <span id="kartengeber-display"></span></h3>
+      <button type="button" onclick="document.getElementById('spiel-dialog').close();"
+              style="width:28px; height:28px; border:1px solid #ccc; background:#f0f0f0; font-size:16px; cursor:pointer; color:#555; line-height:1; border-radius:4px;">✕</button>
+    </div>
+
+    <div id="player-buttons" style="margin-bottom:5px;"></div>
+
+    <div id="grundwert-buttons" style="display:flex; flex-wrap:wrap; gap:8px;">
+      <button type="button" onclick="setGrundwert('Grand')" style="padding:12px 18px; font-size:16px; min-width:80px; border-radius:6px;">Grand</button>
+      <button type="button" onclick="setGrundwert('♣')" style="padding:12px 18px; font-size:48px; min-width:80px; border-radius:6px;">♣</button>
+      <button type="button" onclick="setGrundwert('♠')" style="padding:12px 18px; font-size:48px; min-width:80px; border-radius:6px;">♠</button>
+      <button type="button" onclick="setGrundwert('♥')" style="padding:12px 18px; color:red;font-size:48px; min-width:80px; border-radius:6px;">♥</button>
+      <button type="button" onclick="setGrundwert('♦')" style="padding:12px 18px; color:red; font-size:48px; min-width:80px; border-radius:6px;">♦</button>
+      <button type="button" onclick="setGrundwert('Null')" style="padding:12px 18px; font-size:16px; min-width:80px; border-radius:6px;">Null</button>
+    </div>
+
+    <div id="spitzen-buttons" style="display:flex; gap:10px; margin-top:5px;height: 80px">
+      <button type="button" onclick="setSpitzen(true)" class="spitzen-btn">
+        mit Spitzen
+      </button>
+      <button type="button" onclick="setSpitzen(false)" class="spitzen-btn">
+        ohne Spitzen
+      </button>
+    </div>
+    <div id="spitzen-anzahl" style="display:none; flex-wrap:wrap; gap:6px; margin-top:5px;height: 80px"></div>
+    <div id="gewinnstufen-buttons" style="display:flex; flex-wrap:wrap; gap:2px;min-height:80px;"></div>
+
+<div style="margin-top:10px; display: none;">
+  <input type="text" id="grundwert" style="padding:8px; width:100%; text-align:center; font-weight:bold;" readonly placeholder="Bitte Spielart wählen">
+</div>
+<div style="display:flex; gap:10px; margin-top:8px; display: none;">
+  <label style="flex:1; display:flex; flex-direction:column; text-align:center;">
+    Mit Spitzen
+    <input type="number" id="mitSpitzen" min="0" max="11" style="padding:6px; text-align:center;">
+  </label>
+  <label style="flex:1; display:flex; flex-direction:column; text-align:center;">
+    Ohne Spitzen
+    <input type="number" id="ohneSpitzen" min="0" max="11" style="padding:6px; text-align:center;">
+  </label>
+</div>
+
+    <!-- Gewonnen / Verloren / Eingepasst Buttons -->
+    <div style="display:flex; gap:16px; margin-top:20px; justify-content:center;">
+      <button type="button" id="btn-gewonnen"
+              style="padding:16px 40px; font-size:20px; font-weight:bold; border:none; border-radius:8px;
+                     background:#4CAF50; color:white; cursor:pointer; min-width:150px;">
+        Gewonnen
+      </button>
+      <button type="button" id="btn-verloren"
+              style="padding:16px 40px; font-size:20px; font-weight:bold; border:none; border-radius:8px;
+                     background:#e53935; color:white; cursor:pointer; min-width:150px;">
+        Verloren
+      </button>
+      <button type="button" id="btn-eingepasst"
+              style="padding:16px 40px; font-size:20px; font-weight:bold; border:none; border-radius:8px;
+                     background:#1976D2; color:white; cursor:pointer; min-width:150px;">
+        Eingepasst
+      </button>
+    </div>
+  </form>
+</dialog>
 
 
+<script>
+let spielDaten = [];
+let scale = 1.0;
+let spielerAnzahl = 4;  // 3 oder 4 — zentrale Steuerung
 
-
-function loadPlayers(text) {
-    // 1. Alles vorherige löschen
-    allPlayers = [];
-    selectedPlayers = [];
-    results = {};
-    guests = new Set();
-
-    // Checkbox-Container leeren
-    const container = document.getElementById('playerCheckboxes');
-    container.innerHTML = '';
-    
-    // Tabelle und Status zurücksetzen
-    document.getElementById('rankingTable').querySelector('tbody').innerHTML = '';
-    document.getElementById('message').textContent = '';
-    document.getElementById('exportSection').style.display = 'none';
-    document.getElementById('startRound2').style.display = 'none';
-    
-    // 2. Neue Namen laden
-    const names = text.trim().split('\n').map(n => n.trim()).filter(n => n);
-    names.forEach(name => addPlayerToList(name));
-    
-    // 3. Auswahl und Anzeige aktualisieren
-    updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
-    saveState();
+function getSpielerAnzahl() {
+  return parseInt(document.querySelector('input[name="spieleranzahl"]:checked')?.value || '4');
 }
 
-        function addPlayerToList(name) {
-            name = name.trim();
-            if (!name) return;
-            const normalized = name.toLowerCase();
-            if (allPlayers.some(p => p.toLowerCase() === normalized)) return;
-
-            allPlayers.push(name);
-            results[name] = { res1: '', res2: '' };
-
-            const container = document.getElementById('playerCheckboxes');
-            const div = document.createElement('div');
-            div.className = 'checkbox-item';
-
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.id = 'cb_' + name;
-            cb.checked = true;
-            cb.onchange = updateSelectedPlayers;
-
-            const label = document.createElement('label');
-            label.htmlFor = cb.id;
-            label.textContent = name;
-
-            div.appendChild(cb);
-            div.appendChild(label);
-            container.appendChild(div);
-        }
-
-        function alleWaehlen(checked) {
-            allPlayers.forEach(p => {
-                const cb = document.getElementById('cb_' + p);
-                if (cb) cb.checked = checked && !guests.has(p);
-            });
-            updateSelectedPlayers();
-        }
-
-        function showAddPlayer() {
-            document.getElementById('addPlayerSection').style.display = 'block';
-            document.getElementById('newPlayerName').focus();
-        }
-
-        function addNewPlayer() {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if (!name) {
-                alert('Bitte einen Namen eingeben!');
-                return;
-            }
-
-            addPlayerToList(name);
-            guests.add(name);
-            input.value = '';
-            document.getElementById('addPlayerSection').style.display = 'none';
-
-            updateSelectedPlayers();
-            updateRanking();
-            document.getElementById('message').textContent = `${name} wurde hinzugefügt und ist ausgewählt!`;
-        }
-
-        document.getElementById('newPlayerName').addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addNewPlayer();
-            }
-        });
-
-        function updateSelectedPlayers() {
-            selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
-            resetGameIfNeeded();
-            updatePlayerSelect();
-            updateRanking();
-            saveState();
-        }
-
-        function resetGameIfNeeded() {
-            // Nur UI aktualisieren, NICHT currentRound oder Ergebnisse zurücksetzen
-            editingPlayer = null;
-            editingSeries = null;
-            if (currentRound === 1) {
-                setupRound1();
-            } else {
-                const count = selectedPlayers.length;
-                document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
-                updatePlayerSelect(true);
-                updateRanking();
-                checkRoundComplete();
-            }
-        }
-
-        // Dropdown-Logik: In Serie 2 auch noch fehlende Serie-1-Werte eintragbar machen.
-        // Option-Value-Format: "Name__S1" oder "Name__S2"
-        function updatePlayerSelect(preselectNext = false) {
-            const select = document.getElementById('playerSelect');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">-- Spieler wählen --</option>';
-
-            let candidates = [];
-
-            selectedPlayers.forEach(player => {
-                const res1Empty = results[player].res1 === '';
-                const res2Empty = results[player].res2 === '';
-                const isEditing = editingPlayer === player;
-                const serie1Score = parseFloat(results[player].res1) || 0;
-
-                // Serie-1-Eintrag: fehlt res1, oder wird gerade Serie 1 korrigiert
-                if (res1Empty || (isEditing && editingSeries === 1)) {
-                    candidates.push({ name: player, serie: 1, score: serie1Score });
-                }
-
-                // Serie-2-Eintrag: nur in Serie-2-Modus, fehlt res2 oder Serie-2-Korrektur
-                if (currentRound === 2 && (res2Empty || (isEditing && editingSeries === 2))) {
-                    candidates.push({ name: player, serie: 2, score: serie1Score });
-                }
-                // Edge-Case: Serie-2-Korrektur während Serie-1-Modus (selten)
-                if (currentRound === 1 && isEditing && editingSeries === 2) {
-                    candidates.push({ name: player, serie: 2, score: serie1Score });
-                }
-            });
-
-            if (currentRound === 2) {
-                // Fehlende Serie 1 zuerst (alphabetisch), dann Serie 2 nach Serie-1-Punkten absteigend
-                candidates.sort((a, b) => {
-                    if (a.serie !== b.serie) return a.serie - b.serie;
-                    if (a.serie === 1) return a.name.localeCompare(b.name);
-                    return b.score - a.score;
-                });
-            } else {
-                candidates.sort((a, b) => a.name.localeCompare(b.name));
-            }
-
-            const hasSerie1 = candidates.some(c => c.serie === 1);
-            const hasSerie2 = candidates.some(c => c.serie === 2);
-            const mixed = hasSerie1 && hasSerie2;
-
-            candidates.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = `${c.name}__S${c.serie}`;
-                opt.textContent = (mixed || c.serie !== currentRound) ? `${c.name} (S${c.serie})` : c.name;
-                select.appendChild(opt);
-            });
-
-            if (preselectNext && candidates.length > 0) {
-                let nextValue = null;
-                const idx = candidates.findIndex(c => `${c.name}__S${c.serie}` === currentValue);
-                if (idx >= 0) {
-                    const next = candidates[idx + 1] || candidates[0];
-                    nextValue = `${next.name}__S${next.serie}`;
-                } else {
-                    nextValue = `${candidates[0].name}__S${candidates[0].serie}`;
-                }
-                select.value = nextValue;
-                updatePlaceholderForSelection();
-                document.getElementById('currentResult').focus();
-            } else if (editingPlayer) {
-                select.value = `${editingPlayer}__S${editingSeries || currentRound}`;
-                updatePlaceholderForSelection();
-                document.getElementById('currentResult').focus();
-            } else {
-                updatePlaceholderForSelection();
-            }
-
-            checkRoundComplete();
-        }
-
-        function updatePlaceholderForSelection() {
-            const val = document.getElementById('playerSelect').value;
-            const m = val.match(/^(.*)__S(\d)$/);
-            const input = document.getElementById('currentResult');
-            const serie = m ? m[2] : String(currentRound);
-            input.placeholder = `Ergebnis Serie ${serie} eintragen`;
-        }
-
-        function checkRoundComplete() {
-            const total = selectedPlayers.length;
-            if (currentRound === 1) {
-                const done = selectedPlayers.filter(p => results[p].res1 !== '').length;
-                const allHaveRes1 = done === total;
-                document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
-                document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done} von ${total} eingetragen` : '';
-            } else if (currentRound === 2) {
-                const done2 = selectedPlayers.filter(p => results[p].res2 !== '').length;
-                const missing1 = selectedPlayers.filter(p => results[p].res1 === '').length;
-                const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
-                document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
-                let txt = total > 0 ? `Serie 2: ${done2} von ${total} eingetragen` : '';
-                if (missing1 > 0) txt += ` · Serie 1 fehlt: ${missing1}`;
-                document.getElementById('progress').textContent = txt;
-            }
-        }
-
-        function prepareEdit(player, series) {
-            editingPlayer = player;
-            editingSeries = series;
-
-            const value = series === 1 ? results[player].res1 : results[player].res2;
-            
-
-            document.getElementById('currentResult').value = value;
-            document.getElementById('currentResult').focus();
-
-            updatePlayerSelect();
-
-            document.getElementById('message').textContent = 
-                `Korrigiere Ergebnis Serie ${series} für ${player} – neuen Wert eingeben und speichern.`;
-        }
-
-        function saveCurrentResult() {
-            const selectedValue = document.getElementById('playerSelect').value;
-            if (!selectedValue) {
-                alert('Bitte einen Spieler wählen!');
-                return;
-            }
-            // Neues Format "Name__S1"/"Name__S2"; Fallback für alte Zustände
-            const m = selectedValue.match(/^(.*)__S(\d)$/);
-            const selected = m ? m[1] : selectedValue;
-            const targetSerie = m ? parseInt(m[2], 10) : (editingSeries || currentRound);
-
-            const value = document.getElementById('currentResult').value;
-            if (value === '') {
-                alert('Bitte ein Ergebnis eingeben!');
-                return;
-            }
-
-            const numValue = parseFloat(value);
-
-            if (targetSerie === 1) {
-                results[selected].res1 = numValue;
-            } else if (targetSerie === 2) {
-                results[selected].res2 = numValue;
-            }
-
-            document.getElementById('message').textContent =
-                `Ergebnis Serie ${targetSerie} für ${selected} ${editingPlayer ? '(korrigiert)' : ''} gespeichert!`;
-
-            document.getElementById('currentResult').value = '';
-            const wasEditing = editingPlayer !== null;
-            editingPlayer = null;
-            editingSeries = null;
-
-            updatePlayerSelect(!wasEditing);
-            updateRanking();
-            checkRoundComplete();
-            saveState();
-        }
-
-        function startRound2() {
-            currentRound = 2;
-            editingPlayer = null;
-            editingSeries = null;
-	    const count = selectedPlayers.length;
-            document.getElementById('roundTitle').textContent = 'Serie 2: Ergebnis eintragen';
-            document.getElementById('roundInfo').textContent = 
-                'Jetzt das Ergebnis der zweiten Serie für jeden Spieler eintragen.';
-            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 2 eintragen';
-            document.getElementById('startRound2').style.display = 'none';
-            document.getElementById('rankingTitle').textContent = 'Endstand nach beiden Serien ('+count+' Mitspieler)';
-            updatePlayerSelect(true);
-            updateRanking();
-            checkRoundComplete();
-            saveState();
-        }
-
-function getTableSizes(n) {
-    const sizes = [];
-    if (n < 3) return sizes;
-
-    // Wenn durch 4 teilbar → nur 4er-Tische
-    if (n % 4 === 0) {
-        for (let i = 0; i < n; i += 4) sizes.push(4);
-        return sizes;
-    }
-
-    // Wenn durch 3 teilbar, aber NICHT durch 4 → nur 3er-Tische
-//    if (n % 3 === 0) {
-//        for (let i = 0; i < n; i += 3) sizes.push(3);
-//        return sizes;
-//    }
-
-    // sonst Kombination aus 4er- und 3er-Tischen, 4er bevorzugen
-    const max4 = Math.floor(n / 4);
-    for (let num4 = max4; num4 >= 0; num4--) {
-        const rest = n - num4 * 4;
-        if (rest === 0) {
-            for (let i = 0; i < num4; i++) sizes.push(4);
-            return sizes;
-        }
-        if (rest >= 3 && rest % 3 === 0) {
-            for (let i = 0; i < num4; i++) sizes.push(4);
-            for (let i = 0; i < rest; i += 3) sizes.push(3);
-            return sizes;
-        }
-    }
-
-    // Fallback, sollte praktisch nicht mehr vorkommen
-    for (let i = 0; i < n; i += 3) {
-        sizes.push(Math.min(3, n - i));
-    }
-    return sizes;
+// Bonus-Multiplikator: 30 bei 4 Spielern, 40 bei 3 Spielern
+function getBonusGMultiplikator() {
+  return spielerAnzahl === 3 ? 40 : 30;
 }
 
+const kartenDefault = 36;
+spielDaten = Array(kartenDefault).fill(null).map((_, i) => ({
+  nr: i + 1,
+  grundwert: "", hand: "", schneider: "", schwarz: "",
+  schneiderang: "", schwarzang: "", offen: "",
+  mitSpitzen: "", ohneSpitzen: "", spielwert: "",
+  pluswert: "", minuswert: "",
+  p1_punkte: "", p1_gew: "", p1_verl: "",
+  p2_punkte: "", p2_gew: "", p2_verl: "",
+  p3_punkte: "", p3_gew: "", p3_verl: "",
+  p4_punkte: "", p4_gew: "", p4_verl: "",
+  p1_delta: "", p2_delta: "", p3_delta: "", p4_delta: "",
+  eingepasst: "",
+  spieler: ""
+}));
 
+// ── Tabelle dynamisch aufbauen (thead + tfoot) ─────────────────────
+function buildTableStructure() {
+  const thead = document.getElementById("skat-thead");
+  const tfoot = document.getElementById("skat-tfoot");
+  const n = spielerAnzahl;
 
-function updateRanking() {
-    const tbody = document.getElementById('rankingTable').querySelector('tbody');
-    tbody.innerHTML = '';
+  // THEAD
+  let headerRow1 = `
+    <tr>
+      <th rowspan="2" class="vertical-left"><span>Lfd. Nr. Spiel</span></th>
+      <th rowspan="2" class="unten">9 <br>10<br>11<br>12<br>23<br>24<br>E</th>
+      <th rowspan="2" class="vertical-left"><span>mit Spitzen</span></th>
+      <th rowspan="2" class="vertical-left"><span>ohne Spitzen</span></th>
+      <th colspan="6">Gewinnstufen</th>
+      <th colspan="2">Spiel-<br>werte</th>`;
+  for (let i = 1; i <= n; i++) {
+    headerRow1 += `<th colspan="3" class="player-name${i} player-name">Name${i === 1 ? ' (LF)' : ''}</th>`;
+  }
+  headerRow1 += `<th rowspan="2" class="vertical-left"><span>Eingepasst</span></th><th></th></tr>`;
 
-    let playersToShow = selectedPlayers.map(name => ({
-        name,
-        res1: results[name].res1,
-        res2: results[name].res2,
-        total: (results[name].res1 || 0) + (results[name].res2 || 0)
-    }));
+  let headerRow2 = `<tr>
+      <th class="vertical-left"><span>Hand</span></th>
+      <th class="vertical-left"><span>Schneider</span></th>
+      <th class="vertical-left"><span>Schn. ang.</span></th>
+      <th class="vertical-left"><span>Schwarz</span></th>
+      <th class="vertical-left"><span>Schw. ang.</span></th>
+      <th class="vertical-left"><span>Offen</span></th>
+      <th class="spielwert-spalte">+</th>
+      <th class="spielwert-spalte">-</th>`;
+  for (let i = 1; i <= n; i++) {
+    headerRow2 += `<th class="unten">Platz ${i}</th>
+      <th class="vertical-left"><span>gewonnen</span></th>
+      <th class="vertical-left"><span>verloren</span></th>`;
+  }
+  headerRow2 += `<th></th></tr>`;
 
-    // sortieren
-    if (currentRound === 1) {
-        playersToShow.sort((a, b) => (b.res1 || 0) - (a.res1 || 0));
+  thead.innerHTML = headerRow1 + headerRow2;
+
+  // TFOOT
+  const gMulti = getBonusGMultiplikator();
+  let spielpunkteRow = `<tr><th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight: 400;">Spielpunkte:</th>`;
+  for (let i = 1; i <= n; i++) {
+    spielpunkteRow += `<td class="rechts" id="sum-p${i}">0</td><td id="gew-p${i}">0</td><td id="verl-p${i}">0</td>`;
+  }
+  spielpunkteRow += `<td id="sum-eingepasst">0</td><td></td></tr>`;
+
+  let bonusPRow = `<tr><th colspan="12" style="text-align:left; padding: 0 15px; font-size: 14px; background:#f0f0f0;font-weight: 400;">+ (gew. Spiele - verl. Spiele) x 50:</th>`;
+  for (let i = 1; i <= n; i++) {
+    bonusPRow += `<td class="rechts" id="bonus-p${i}">0</td><td id="bogew-p${i}"></td><td></td>`;
+  }
+  bonusPRow += `<td></td><td></td></tr>`;
+
+  let bonusGRow = `<tr><th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight: 400;">+ verl. Spiele der Gegenspieler x ${gMulti}:</th>`;
+  for (let i = 1; i <= n; i++) {
+    bonusGRow += `<td class="rechts" id="bonus-g${i}">0</td><td id="bogew-g${i}"></td><td></td>`;
+  }
+  bonusGRow += `<td></td><td></td></tr>`;
+
+  let gesamtRow = `<tr><th colspan="12" style="text-align:left; padding: 0 15px;font-size: 14px; background:#f0f0f0; font-weight:bold;">Gesamtpunkte:</th>`;
+  for (let i = 1; i <= n; i++) {
+    gesamtRow += `<td class="rechts" id="gesamt-p${i}">0</td><td></td><td></td>`;
+  }
+  gesamtRow += `<td></td><td></td></tr>`;
+
+  tfoot.innerHTML = spielpunkteRow + bonusPRow + bonusGRow + gesamtRow;
+}
+
+function isOldIOS() {
+  const ua = navigator.userAgent;
+  const match = ua.match(/OS (\d+)_/);
+  return match && parseInt(match[1]) < 16;
+}
+
+function setStickyByScale(scale) {
+  const tfoot = document.querySelector('#skat-table tfoot');
+  // Sticky nur bei Zoom > 1 aktivieren (Tablet-Querformat).
+  // Bei Scale < 1 (Handy-Querformat) bricht Sticky auf iPhone Safari durch die CSS-Transform.
+  if (scale > 1.0 && !isOldIOS()) {
+    tfoot.style.position = '-webkit-sticky';
+    tfoot.style.position = 'sticky';
+    tfoot.style.bottom = '0';
+    tfoot.style.zIndex = '3';
+  } else {
+    tfoot.style.position = 'static';
+    tfoot.style.bottom = '';
+    tfoot.style.zIndex = '';
+  }
+}
+
+function setTableHeight() {
+  const swidth = screen.width;
+  const screenH = window.innerHeight;
+  const screenW = window.innerWidth;
+  const wrapper = document.querySelector('.table-wrapper');
+  const isLandscape = screenW > screenH;
+
+  let scale = 1.0;
+  if (isLandscape) {
+    if (screenW < 900) {
+      const tableEl = document.querySelector('#skat-table');
+      const naturalWidth = tableEl && tableEl.scrollWidth > 800 ? tableEl.scrollWidth : 1100;
+      scale = screenW / naturalWidth;
+    } else if (swidth >= 1200) {
+      scale = 1.0;
     } else {
-        playersToShow.sort((a, b) => b.total - a.total);
+      scale = 1.35;
+    }
+  } else {
+    if (screenW >= 810) scale = 1.0;
+    else scale = screenW / 825;
+  }
+
+  let maxH;
+  let maxW;
+  // Handy-Querformat: kompakter Header, mehr Platz für die Tabelle
+  const isPhoneLandscape = isLandscape && screenW < 900;
+  if (isPhoneLandscape) { maxH = screenH - 120; }
+  else if (isLandscape) { maxH = screenH - 210; }
+  else { maxH = screenH - 175; }
+  maxW = screenW + 100;
+  maxH = maxH / scale;
+
+  wrapper.style.maxHeight = maxH + 'px';
+  wrapper.style.height = maxH + 'px';
+}
+
+function resetZoom() {
+  // Viewport-Zoom (Pinch-Zoom auf iOS Safari) zurücksetzen, indem das
+  // viewport-Meta kurz "fest" gesetzt und dann wieder freigegeben wird
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (vp) {
+    const original = vp.getAttribute('content');
+    vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    setTimeout(() => {
+      vp.setAttribute('content', original);
+      autoScalePage();
+    }, 150);
+  }
+  window.scrollTo(0, 0);
+}
+
+function autoScalePage() {
+  const swidth = screen.width;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isLandscape = width > height;
+
+  let scale = 1.0;
+  if (isLandscape) {
+    if (width < 900) {
+      // Handy-Querformat: Tabelle auf volle Bildschirmbreite skalieren
+      const tableEl = document.querySelector('#skat-table');
+      const naturalWidth = tableEl && tableEl.scrollWidth > 800 ? tableEl.scrollWidth : 1100;
+      scale = width / naturalWidth;
+    } else if (swidth >= 1200) {
+      scale = 1.0;
+    } else {
+      scale = 1.35;           // Tablet-Querformat
+    }
+  } else {
+    if (width >= 810) scale = 1.0;
+    else scale = width / 825;
+  }
+
+  const comp = 100 / scale;
+  const html = document.documentElement;
+  html.style.transform = `scale(${scale})`;
+  html.style.transformOrigin = '0 0';
+  html.style.width = comp + '%';
+  html.style.height = comp + '%';
+  html.style.overflow = 'hidden';
+
+  setStickyByScale(scale);
+  setTableHeight();
+  updateCopyright();
+
+  console.log(`Landscape: ${isLandscape}, Width: ${width}x${height}, Scale: ${scale.toFixed(2)}`);
+}
+
+window.addEventListener('load', autoScalePage);
+window.addEventListener('resize', autoScalePage);
+window.addEventListener('orientationchange', autoScalePage);
+
+function fillTable() {
+  const tbody = document.getElementById("game-rows");
+  tbody.innerHTML = "";
+  const n = spielerAnzahl;
+
+  console.log("Test-Tabelle: " + spielDaten.length + " Zeilen, Spieler: " + n);
+
+  let buttonInserted = false;
+
+  let punkteSummen     = [0, 0, 0, 0];
+  let gewinnZaehler    = [0, 0, 0, 0];
+  let verlustZaehler   = [0, 0, 0, 0];
+  let eingepasstZaehler = 0;
+
+  spielDaten.forEach((data, i) => {
+    const isEmpty = !data.grundwert && !data.hand && !data.schneider &&
+                    !data.schneiderang && !data.schwarz && !data.schwarzang && !data.offen;
+
+    if (isEmpty && !buttonInserted) {
+      createButtonRow(i);
+      buttonInserted = true;
     }
 
-    // Tischgrößen aus sortierter Anzahl bestimmen
-    const sizes = getTableSizes(playersToShow.length);
+    let istEingepasst = false;
+    let istGueltigesSpiel = false;
 
-    // Tischnummern gemäß Größenliste zuweisen
-    let idx = 0;
-    let tischNr = 1;
-    for (const size of sizes) {
-        for (let i = 0; i < size && idx < playersToShow.length; i++, idx++) {
-            playersToShow[idx].table = tischNr;
+    if (!isEmpty) {
+      if (data.grundwert === "E" || data.grundwert === "Pass") {
+        istEingepasst = true;
+        eingepasstZaehler++;
+      }
+      else if (data.spieler && data.gewonnen !== null && data.gewonnen !== undefined) {
+        istGueltigesSpiel = true;
+        const pos = data.spieler - 1;
+        const delta = parseInt(data[`p${data.spieler}_delta`]) || 0;
+        punkteSummen[pos] += delta;
+        if (data.gewonnen === true) {
+          gewinnZaehler[pos]++;
+        } else if (data.gewonnen === false) {
+          verlustZaehler[pos]++;
         }
-        tischNr++;
+      }
     }
 
-    // Tabelle rendern
-    let currentRank = 1;
-    playersToShow.forEach((p, i) => {
-        // Ranggleichheit: gleicher Score = gleicher Rang
-        const scoreKey = currentRound === 1 ? (p.res1 || 0) : p.total;
-        const prevScoreKey = i > 0 ? (currentRound === 1 ? (playersToShow[i-1].res1 || 0) : playersToShow[i-1].total) : null;
-        if (i === 0) {
-            currentRank = 1;
-        } else if (scoreKey !== prevScoreKey) {
-            currentRank = i + 1;
-        }
-        const rank = currentRank;
+    // Anzeigewerte
+    let pPunkte = ["", "", "", ""];
+    let pGew = ["", "", "", ""];
+    let pVerl = ["", "", "", ""];
+    let eingepasstAnzeige = "";
 
-        const row = document.createElement('tr');
+    if (!isEmpty) {
+      if (istEingepasst) {
+        eingepasstAnzeige = eingepasstZaehler;
+      }
+      if (istGueltigesSpiel && data.spieler) {
+        const pos = data.spieler - 1;
+        pPunkte[pos] = punkteSummen[pos];
+        pGew[pos] = data.gewonnen === true ? gewinnZaehler[pos] : "";
+        pVerl[pos] = data.gewonnen === false ? verlustZaehler[pos] : "";
+      }
+    }
 
-        // Prüfen ob Tischwechsel → dicke Linie
-        const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
-        row.className = isTableChange ? 'thick-line' : '';
+    const row = document.createElement("tr");
+    row.classList.add("data-row");
+    row.dataset.nr = data.nr;
 
-        const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        row.innerHTML = `
-            <td>${rank}</td>
-            <td>${p.name}</td>
-            <td>
-                <div class="edit-cell">
-                    ${p.res1 !== '' ? p.res1 : '-'}
-                    ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 1)">Kor.</button>` : ''}
-                </div>
-            </td>
-            <td>${p.table}</td>
-            <td>
-                <div class="edit-cell">
-                    ${p.res2 !== '' ? p.res2 : '-'}
-                    ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 2)">Kor.</button>` : ''}
-                </div>
-            </td>
-            <td>${currentRound === 2 ? p.total : '-'}</td>
-        `;
-        tbody.appendChild(row);
-    });
+    if (istEingepasst) {
+      row.style.backgroundColor = "#ddd";
+      row.style.fontStyle = "italic";
+    }
+
+    const negFmt = v => (Number(v) < 0 ? `<span style="color:red;">${v}</span>` : v);
+    let playerCols = "";
+    for (let p = 0; p < n; p++) {
+      playerCols += `<td class="rechts">${pPunkte[p] === "" || pPunkte[p] == null ? "" : negFmt(pPunkte[p])}</td><td>${pGew[p]}</td><td>${pVerl[p]}</td>`;
+    }
+
+    row.innerHTML = `
+      <td>${data.nr}</td>
+      <td>${data.grundwert || ""}</td>
+      <td>${data.mitSpitzen || ""}</td>
+      <td>${data.ohneSpitzen || ""}</td>
+      <td>${data.hand || ""}</td>
+      <td>${data.schneider || ""}</td>
+      <td>${data.schneiderang || ""}</td>
+      <td>${data.schwarz || ""}</td>
+      <td>${data.schwarzang || ""}</td>
+      <td>${data.offen || ""}</td>
+      <td>${data.pluswert || ""}</td>
+      <td>${data.minuswert ? `<span style="color:red;">${data.minuswert}</span>` : ""}</td>
+      ${playerCols}
+      <td>${eingepasstAnzeige}</td>
+      <td>
+        ${isEmpty ? "" : `<button class="edit-btn" onclick="openNewModal(${data.nr-1})">Edit</button>`}
+      </td>
+    `;
+
+    // Streifen-Styling für Geber
+    const colMap = n === 4 ? [13, 16, 19, 22] : [13, 16, 19];
+    const mod = (data.nr - 1) % n;
+    row.querySelector(`td:nth-child(${colMap[mod]})`).style.background = "repeating-linear-gradient(-45deg, #ddd, #ddd 3px, #fff 3px, #fff 6px)";
+    row.querySelector(`td:nth-child(${colMap[mod]+1})`).style.background = "repeating-linear-gradient(-45deg, #ddd, #ddd 3px, #fff 3px, #fff 6px)";
+    row.querySelector(`td:nth-child(${colMap[mod]+2})`).style.background = "repeating-linear-gradient(-45deg, #ddd, #ddd 3px, #fff 3px, #fff 6px)";
+
+    tbody.appendChild(row);
+  });
+
+  const setNumColor = (el, v) => { el.style.color = Number(v) < 0 ? "red" : ""; };
+
+  // Gesamtsummen in tfoot schreiben
+  for (let i = 0; i < n; i++) {
+    const sumVal = punkteSummen[i] || 0;
+    const sumCell = document.getElementById(`sum-p${i+1}`);
+    sumCell.textContent = sumVal;
+    setNumColor(sumCell, sumVal);
+    document.getElementById(`gew-p${i+1}`).textContent = gewinnZaehler[i] || 0;
+    document.getElementById(`verl-p${i+1}`).textContent = verlustZaehler[i] || 0;
+  }
+  document.getElementById("sum-eingepasst").textContent = eingepasstZaehler || 0;
+
+  // Bonus-Zeile: (gew - verl) × 50
+  for (let i = 0; i < n; i++) {
+    const bonusP = (gewinnZaehler[i] - verlustZaehler[i]) * 50;
+    const diff = gewinnZaehler[i] - verlustZaehler[i];
+    const bpCell = document.getElementById(`bonus-p${i+1}`);
+    const bgCell = document.getElementById(`bogew-p${i+1}`);
+    bpCell.textContent = bonusP || 0;
+    bgCell.textContent = diff || 0;
+    setNumColor(bpCell, bonusP);
+    setNumColor(bgCell, diff);
+  }
+
+  // Bonus-Zeile: (verl Gegner) × Multiplikator
+  const gMulti = getBonusGMultiplikator();
+  for (let i = 0; i < n; i++) {
+    let gegnerVerluste = 0;
+    for (let j = 0; j < n; j++) {
+      if (j !== i) gegnerVerluste += verlustZaehler[j];
+    }
+    const bonusG = gegnerVerluste * gMulti;
+    document.getElementById(`bonus-g${i+1}`).textContent = bonusG || 0;
+    document.getElementById(`bogew-g${i+1}`).textContent = gegnerVerluste || 0;
+  }
+
+  // Gesamtpunkte
+  for (let i = 0; i < n; i++) {
+    const bonusP = (gewinnZaehler[i] - verlustZaehler[i]) * 50;
+    let gegnerVerluste = 0;
+    for (let j = 0; j < n; j++) {
+      if (j !== i) gegnerVerluste += verlustZaehler[j];
+    }
+    const bonusG = gegnerVerluste * gMulti;
+    const gesamt = punkteSummen[i] + bonusP + bonusG;
+    const cell = document.getElementById(`gesamt-p${i+1}`);
+    cell.textContent = gesamt || 0;
+    cell.style.color = gesamt > 0 ? "green" : gesamt < 0 ? "red" : "black";
+    cell.style.fontWeight = "bold";
+  }
+
+  updatePlayerNamesInTable();
+  saveState();
 }
 
 
+function closeSpielDialog() {
+  const dialog = document.getElementById("spiel-dialog");
+  if (dialog.open) {
+    dialog.close();
+  }
+}
 
+function updatePlayerNamesInTable() {
+  const n = spielerAnzahl;
+  for (let i = 1; i <= n; i++) {
+    const th = document.querySelector(`#skat-table thead tr:nth-child(1) th.player-name${i}`);
+    if (th) th.textContent = spielerNamen[i-1] + (i === 1 ? " (LF)" : "");
+  }
+  // Button "neuer Spieleintrag" aktualisieren
+  const btn = document.querySelector(".neuer-eintrag-btn");
+  if (btn) {
+    const spielIndex = parseInt(btn.getAttribute("onclick").match(/\d+/)?.[0]) || 0;
+    const geberName = spielerNamen[spielIndex % spielerAnzahl];
+    btn.textContent = "📝 neuer Spieleintrag ... (Geber: " + geberName + ")";
+  }
+}
 
-        function neustart() {
-            if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
-            localStorage.removeItem('skat_state');
-            currentRound = 1;
-            editingPlayer = null;
-            editingSeries = null;
-            // Spielerliste frisch aus Mitspieler.txt laden (entfernt Gäste/importierte Spieler).
-            // Fallback: Datei nicht erreichbar → vorhandene Liste ohne Gäste übernehmen.
-            fetch('Mitspieler.txt')
-                .then(r => r.ok ? r.text() : Promise.reject())
-                .then(text => loadPlayers(text))
-                .catch(() => {
-                    const regulars = allPlayers.filter(p => !guests.has(p));
-                    loadPlayers(regulars.join('\n'));
-                });
+function createButtonRow(spielIndex) {
+  const tbody = document.getElementById("game-rows");
+  const btnRow = document.createElement("tr");
+  btnRow.classList.add("button-row");
+
+  const colCount = 12 + (spielerAnzahl * 3) + 2;
+
+  const td = document.createElement("td");
+  td.colSpan = colCount;
+  td.style.textAlign = "center";
+  td.style.background = "#f5f5f5";
+  td.style.padding = "6px 0";
+
+  const geberName = spielerNamen[spielIndex % spielerAnzahl];
+  td.innerHTML = `
+    <span style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+      <button onclick="openNewModal(${spielIndex})" class="neuer-eintrag-btn" style="flex-shrink: 0;">
+        📝 neuer Spieleintrag ... (Geber: ${geberName})
+      </button>
+    </span>
+  `;
+
+  btnRow.appendChild(td);
+  tbody.appendChild(btnRow);
+}
+
+function berechneSpielwert(spiel) {
+    const grundwert = parseInt(spiel.grundwert) || 0;
+    if (grundwert === 0 || grundwert === "E") return 0;
+
+    // Null-Spiele
+    if (grundwert === 23) {
+        const hatHand   = spiel.hand === "X";
+        const hatOuvert = spiel.offen === "X";
+        if (hatHand && hatOuvert) return 59;
+        if (hatHand)              return 35;
+        if (hatOuvert)            return 46;
+        return 23;
+    }
+
+    // Farb- und Grand-Spiele
+    let multiplikator = 0;
+    if (spiel.hand        === "X") multiplikator++;
+    if (spiel.schneider   === "X") multiplikator++;
+    if (spiel.schneiderang === "X") multiplikator++;
+    if (spiel.schwarz     === "X") multiplikator++;
+    if (spiel.schwarzang  === "X") multiplikator++;
+    if (spiel.offen       === "X") multiplikator++;
+
+    const spitzen = parseInt(spiel.mitSpitzen) || parseInt(spiel.ohneSpitzen) || 0;
+    const spitzenFaktor = spitzen + 1;
+    const spielwert = grundwert * (spitzenFaktor + multiplikator);
+    return spielwert;
+}
+
+function setSpitzen(isMitSpitzen) {
+  const mit = document.getElementById("mitSpitzen");
+  const ohne = document.getElementById("ohneSpitzen");
+  const grundwert = document.getElementById("grundwert")?.value || "";
+
+  if (isMitSpitzen) {
+    mit.value = mit.value || "1";
+    ohne.value = "";
+  } else {
+    ohne.value = ohne.value || "1";
+    mit.value = "";
+  }
+
+  if (grundwert === "Eingepasst" || grundwert === "E") {
+    mit.value = "";
+    ohne.value = "";
+  }
+
+  document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll("#spitzen-buttons button")[isMitSpitzen ? 0 : 1].classList.add("active");
+
+  const aktuelleAnzahl = isMitSpitzen ? parseInt(mit.value) || 1 : parseInt(ohne.value) || 1;
+  document.querySelectorAll("#spitzen-anzahl .spitze-btn").forEach(btn => {
+    btn.classList.toggle("active", parseInt(btn.textContent) === aktuelleAnzahl);
+  });
+}
+
+function selectSpitze(value) {
+  const mit = document.getElementById("mitSpitzen");
+  const ohne = document.getElementById("ohneSpitzen");
+
+  if (mit.value === "1") {
+    mit.value = value;
+  } else {
+    ohne.value = value;
+  }
+
+  document.querySelectorAll(".spitze-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent == value);
+  });
+}
+
+function generatePlayerButtons(spielIndex) {
+  const container = document.getElementById("player-buttons");
+  container.innerHTML = "";
+  const n = spielerAnzahl;
+
+  const führenderSpieler = (spielIndex % n);
+  for (let i = 0; i < n; i++) {
+    if (n === 4 && i === führenderSpieler) continue;  // Bei 4er: Geber überspringen
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = spielerNamen[i];
+    btn.style.marginRight = "5px";
+    btn.style.fontSize = "16px";
+    btn.style.padding = "5px 5px";
+    btn.style.cursor = "pointer";
+    btn.style.width = "200px";
+    btn.style.height = "80px";
+    btn.style.borderRadius = "6px";
+
+    const ausgewaehlter = parseInt(document.getElementById("spiel-form").dataset.ausgewaehlterSpieler, 10);
+    if (ausgewaehlter === i + 1) {
+      btn.style.background = "#4CAF50";
+      btn.style.color = "#fff";
+    }
+
+    btn.addEventListener("click", () => {
+      Array.from(container.children).forEach(b => {
+        b.style.background = "";
+        b.style.color = "#000";
+      });
+
+      btn.style.background = "#4CAF50";
+      btn.style.color = "#fff";
+
+      document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = i + 1;
+    });
+
+    container.appendChild(btn);
+  }
+}
+
+function createCSVButton() {
+  const container = document.getElementById("csv-export-container");
+  if (!container || container.children.length > 0) return;
+
+  const csvBtn = document.createElement("button");
+  csvBtn.innerHTML = "☁️ Speichern";
+  csvBtn.style.cssText = `
+    padding: 6px 16px;
+    margin-left: auto;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white; border: none; border-radius: 6px;
+    font-size: 15px; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(40,167,69,0.3); transition: transform 0.2s;
+  `;
+  csvBtn.addEventListener("mouseenter", () => csvBtn.style.transform = "scale(1.05)");
+  csvBtn.addEventListener("mouseleave", () => csvBtn.style.transform = "scale(1)");
+  csvBtn.onclick = saveSerieToFirestore;
+  container.appendChild(csvBtn);
+}
+
+function createNeuStartButton() {
+  const container = document.getElementById("neu-start-container");
+  if (!container || container.children.length > 0) return;
+
+  const btn = document.createElement("button");
+  btn.innerHTML = "🗑 Neue Liste";
+  btn.style.cssText = `
+    padding: 6px 16px;
+    background: linear-gradient(135deg, #e53935, #c62828);
+    color: white; border: none; border-radius: 6px;
+    font-size: 15px; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(229,57,53,0.3); transition: transform 0.2s;
+  `;
+  btn.addEventListener("mouseenter", () => btn.style.transform = "scale(1.05)");
+  btn.addEventListener("mouseleave", () => btn.style.transform = "scale(1)");
+  btn.addEventListener("click", () => {
+    if (!confirm("Alle Einträge löschen und neue Liste starten?")) return;
+    clearState();
+    location.reload();
+  });
+  container.appendChild(btn);
+}
+
+function getInt(id) {
+  return parseInt(document.getElementById(id)?.textContent || 0, 10);
+}
+
+function exportCSV() {
+  const n = spielerAnzahl;
+  const gMulti = getBonusGMultiplikator();
+
+  const headers = ['Nr','Grundwert','Mit','Ohne','Hand','Schneider','Schn.Ang','Schwarz','Schw.Ang','Offen','+', '-'];
+  for (let i = 0; i < n; i++) {
+    headers.push(spielerNamen[i], `Gew${i+1}`, `Verl${i+1}`);
+  }
+  headers.push('Eingepasst');
+
+  const csvRows = [headers];
+
+  spielDaten.forEach(spiel => {
+    const row = [
+      spiel.nr || '', spiel.grundwert || '', spiel.mitSpitzen || '', spiel.ohneSpitzen || '',
+      spiel.hand || '', spiel.schneider || '', spiel.schneiderang || '', spiel.schwarz || '',
+      spiel.schwarzang || '', spiel.offen || '', spiel.pluswert || '', spiel.minuswert || ''
+    ];
+    for (let i = 1; i <= n; i++) {
+      row.push(spiel[`p${i}_delta`] || '', spiel[`p${i}_gew`] || '', spiel[`p${i}_verl`] || '');
+    }
+    row.push(spiel.eingepasst || '');
+    csvRows.push(row);
+  });
+
+  // ENDSUMMEN
+  const sumRow = ['','','','','','','','','','','',''];
+  for (let i = 1; i <= n; i++) {
+    sumRow.push(
+      document.getElementById(`sum-p${i}`)?.textContent || '',
+      document.getElementById(`gew-p${i}`)?.textContent || '',
+      document.getElementById(`verl-p${i}`)?.textContent || ''
+    );
+  }
+  sumRow.push(document.getElementById('sum-eingepasst')?.textContent || '');
+  csvRows.push(sumRow);
+
+  // Bonus-Berechnungen
+  const bonusG = [], bonusP = [], gesamt = [];
+  for (let i = 1; i <= n; i++) {
+    let gv = 0;
+    for (let j = 1; j <= n; j++) {
+      if (j !== i) gv += getInt(`verl-p${j}`);
+    }
+    bonusG.push(gv);
+    bonusP.push(getInt(`gew-p${i}`) - getInt(`verl-p${i}`));
+    gesamt.push(getInt(`sum-p${i}`) + bonusP[i-1]*50 + gv*gMulti);
+  }
+
+  const bpRow = ['','','','','','','','','','','',''];
+  for (let i = 0; i < n; i++) { bpRow.push(bonusP[i] * 50, bonusP[i], ''); }
+  bpRow.push('');
+  csvRows.push(bpRow);
+
+  const bgRow = ['','','','','','','','','','','',''];
+  for (let i = 0; i < n; i++) { bgRow.push(bonusG[i] * gMulti, bonusG[i], ''); }
+  bgRow.push('');
+  csvRows.push(bgRow);
+
+  const gRow = ['','','','','','','','','','','',''];
+  for (let i = 0; i < n; i++) { gRow.push(gesamt[i], '', ''); }
+  gRow.push('');
+  csvRows.push(gRow);
+
+  // SEMIKOLON + UTF-8 BOM
+  const csvContent = '\uFEFF' + csvRows.map(row =>
+    row.map(cell => `"${cell}"`).join(';')
+  ).join('\n');
+
+  const serieWert = document.querySelector('input[name="serie"]:checked')?.value || '0';
+  const tischWert = document.getElementById('tisch-auswahl')?.value || '0';
+
+  downloadCSV(csvContent, `Spielliste_${n}er_S${serieWert}_T${tischWert}_${new Date().toLocaleDateString('de-DE')}.csv`);
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+const spielerNamen = ["Spieler 1", "Spieler 2", "Spieler 3", "Spieler 4"];
+
+function generatePlayerNameButtons() {
+  const mitspielerListe = [
+	"Bertram, Frank",
+	"Bleckmann, Norbert",
+	"Böllsterling, Gottfried",
+	"Brand, Jo",
+	"Bühl, Heinz",
+	"Faßbender, Kai",
+	"Gebhardt, Harry",
+	"Götte, Norbert",
+	"Grapatin, Alexander",
+	"Gruschka, Alfred",
+	"Heimann, Klaus-Dieter",
+	"Hetz, Michael",
+	"Holtkamp, Bodo",
+	"Jeske, Joachim",
+	"Josek, Norbert",
+	"Jost, Uwe (Gle.)",
+	"Kraus, Max",
+	"Langer, Kurt",
+	"Mauelshagen, Martin",
+	"Müller, Werner (Gle.)",
+	"Opitz, Jürgen (Gle.)",
+	"Pestotnik, Ralf",
+	"Puls, Wilfried",
+	"Schekerka, Herbert",
+	"Schnecke, Dieter",
+	"Schwarz, Peter",
+	"Selzer, Bernhard",
+	"Stümpges, Joachim",
+	"Weyer, Wilfried (Gle.)",
+	"Winand, Hermann (Gle.)",
+	"Gast"
+  ];
+
+  const n = spielerAnzahl;
+
+  // Alle 4 Container behandeln: ein-/ausblenden und ggf. leeren
+  for (let p = 1; p <= 4; p++) {
+    const c = document.getElementById(`player-btn-container-${p}`);
+    if (!c) continue;
+    if (p > n) {
+      c.style.display = "none";
+      c.innerHTML = "";
+    } else {
+      c.style.display = "";
+    }
+  }
+
+  for (let pos = 1; pos <= n; pos++) {
+    const container = document.getElementById(`player-btn-container-${pos}`);
+    if (!container) continue;
+
+    container.innerHTML = "";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = spielerNamen[pos - 1] || `Spieler ${pos}`;
+    btn.style.fontSize = "15px";
+    btn.style.padding = "6px 12px";
+    btn.style.cursor = "pointer";
+    btn.style.minWidth = "100px";
+    btn.style.borderRadius = "6px";
+
+    btn.addEventListener("click", () => {
+      const select = document.createElement("select");
+      select.style.fontSize = "15px";
+      select.style.padding = "4px 8px";
+      select.style.minWidth = "180px";
+      select.style.maxWidth = "220px";
+      select.style.marginTop = "4px";
+
+      const optDefault = document.createElement("option");
+      optDefault.value = "";
+      optDefault.text = "— Namen wählen —";
+      select.appendChild(optDefault);
+
+      const aktuell = spielerNamen[pos - 1];
+      mitspielerListe.forEach(name => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.text = name === "Gast" ? "Gast (Name eingeben)" : name;
+        if (name === aktuell) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      const gastInput = document.createElement("input");
+      gastInput.type = "text";
+      gastInput.id = `gast-input-${pos}`;
+      gastInput.placeholder = "Gastname eingeben...";
+      gastInput.style.display = "none";
+      gastInput.style.marginTop = "4px";
+      gastInput.style.padding = "4px 8px";
+      gastInput.style.width = "200px";
+
+      select.addEventListener("change", () => {
+        const wert = select.value;
+        if (wert === "Gast") {
+          gastInput.style.display = "block";
+          gastInput.focus();
+          return;
+        } else if (gastInput.style.display === "block") {
+          gastInput.style.display = "none";
         }
 
-        function exportToCSV() {
-            let playersToExport = selectedPlayers.map(name => ({
-                name,
-                res1: results[name].res1 || 0,
-                res2: results[name].res2 || 0,
-                total: (results[name].res1 || 0) + (results[name].res2 || 0)
-            }));
+        if (wert && wert !== "Gast") {
+          // Duplikat-Prüfung
+          const andererIndex = spielerNamen.findIndex((n, idx) => idx !== (pos - 1) && n === wert);
+          if (andererIndex >= 0) {
+            alert(`⚠️ "${wert}" ist bereits als Spieler ${andererIndex + 1} eingetragen!`);
+            select.value = "";
+            return;
+          }
+          spielerNamen[pos - 1] = wert;
+          btn.textContent = wert;
+          updatePlayerNamesInTable();
+          saveState();
+        }
+        container.removeChild(select);
+        if (gastInput.parentNode) container.removeChild(gastInput);
+        container.appendChild(btn);
+      });
 
-            playersToExport.sort((a, b) => b.total - a.total);
+      gastInput.addEventListener("change", () => {
+        const gastName = gastInput.value.trim();
+        if (gastName) {
+          const gastVollName = `Gast: ${gastName}`;
+          // Duplikat-Prüfung auch für Gast-Namen
+          const andererIndex = spielerNamen.findIndex((n, idx) => idx !== (pos - 1) && n === gastVollName);
+          if (andererIndex >= 0) {
+            alert(`⚠️ "${gastVollName}" ist bereits als Spieler ${andererIndex + 1} eingetragen!`);
+            gastInput.value = "";
+            gastInput.focus();
+            return;
+          }
+          spielerNamen[pos - 1] = gastVollName;
+          btn.textContent = gastVollName;
+          updatePlayerNamesInTable();
+          saveState();
+        }
+        container.removeChild(select);
+        container.removeChild(gastInput);
+        container.appendChild(btn);
+      });
 
-            let csv = 'Rang;Name;Serie 1;Serie 2;Gesamt\n';
-            playersToExport.forEach((p, i) => {
-                csv += `${i + 1};${p.name};${p.res1};${p.res2};${p.total}\n`;
+      container.removeChild(btn);
+      container.appendChild(select);
+      container.appendChild(gastInput);
+      select.focus();
+    });
+
+    container.appendChild(btn);
+  }
+}
+
+
+function generateGewinnstufenButtons(spielIndex) {
+  const container = document.getElementById("gewinnstufen-buttons");
+  container.innerHTML = "";
+
+  if (spielIndex === null || spielIndex < 0) return;
+
+  const data = spielDaten[spielIndex];
+  const grundwert = document.getElementById("grundwert").value;
+
+  if (!grundwert || grundwert === "Pass" || grundwert === "E") return;
+
+  const MAP = {
+    "Hand": "hand",
+    "Schneider": "schneider",
+    "Schn.ang.": "schneiderang",
+    "Schwarz": "schwarz",
+    "Schw.ang.": "schwarzang",
+    "Ouvert": "offen"
+  };
+
+  const buttons =
+    grundwert == 23
+      ? ["Hand", "Ouvert"]
+      : ["Hand", "Schneider", "Schn.ang.", "Schwarz", "Schw.ang.", "Ouvert"];
+
+  buttons.forEach(label => {
+    const key = MAP[label];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "gw-btn";
+    btn.innerHTML = label.replace(".", ".<br>");
+
+    if (data[key] === "X") {
+      btn.classList.add("active");
+    }
+
+    btn.addEventListener("click", () => {
+      data[key] = data[key] === "X" ? "" : "X";
+      btn.classList.toggle("active");
+
+	  // Schwarz angesagt
+	  if (label === "Schw.ang.") {
+		if (data.schwarzang === "X" && data.schwarz !== "X") {
+		  data.schwarz = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schwarz"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+		if (data.schwarzang === "X" && data.schneiderang !== "X") {
+		  data.schneiderang = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schn."));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+		if (data.schwarzang === "X" && data.schneider !== "X") {
+		  data.schneider = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+		if (data.schwarzang === "X" && data.hand !== "X") {
+		  data.hand = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Hand"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+	  }
+
+	  // Schwarz
+	  if (label === "Schwarz") {
+		if (data.schwarz === "X" && data.schneider !== "X") {
+		  data.schneider = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+	  }
+
+	  // Schneider angesagt
+	  if (label === "Schn.ang.") {
+		if (data.schneiderang === "X" && data.schneider !== "X") {
+		  data.schneider = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Schneider"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+		if (data.schneiderang === "X" && data.hand !== "X") {
+		  data.hand = "X";
+		  const setBtn = Array.from(container.children).find(b => b.innerHTML.includes("Hand"));
+		  if (setBtn) {setBtn.classList.add("active");}
+		}
+	  }
+
+      fillTable();
+    });
+
+    container.appendChild(btn);
+  });
+}
+
+function resetButtons() {
+  document.querySelectorAll("#grundwert-buttons button").forEach(btn => {
+    btn.style.backgroundColor = "";
+    btn.style.fontWeight = "";
+    if (btn.textContent === "♥" || btn.textContent === "♦") {
+      btn.style.color = "red";
+    } else {
+      btn.style.color = "black";
+    }
+  });
+
+  document.getElementById("spitzen-buttons").style.display = "none";
+  document.getElementById("spitzen-anzahl").style.display = "none";
+  document.querySelectorAll(".spitzen-btn").forEach(btn => btn.classList.remove("active"));
+  document.querySelectorAll(".spitze-btn").forEach(btn => btn.classList.remove("active"));
+}
+
+function renderSpitzenButtons(max) {
+  const container = document.getElementById("spitzen-anzahl");
+  container.innerHTML = "";
+  container.style.display = "flex";
+
+  for (let i = 1; i <= max; i++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "spitze-btn";
+    btn.textContent = i;
+    btn.onclick = () => selectSpitze(i);
+    container.appendChild(btn);
+  }
+}
+
+function setGrundwert(value) {
+  const input = document.getElementById("grundwert");
+  const spitzenBlock = document.getElementById("spitzen-buttons");
+  const spitzenAnzahlBlock = document.getElementById("spitzen-anzahl");
+  const gewinnstufenBlock = document.getElementById("gewinnstufen-buttons");
+
+  const grundwertMap = {
+    "Grand": 24, "♣": 12, "♠": 11, "♥": 10, "♦": 9, "Null": 23, "Pass": "E"
+  };
+
+  input.value = grundwertMap[value];
+
+  if (value === "Null" || value === "Pass") {
+    spitzenBlock.style.display = "none";
+    spitzenAnzahlBlock.style.display = "none";
+    document.getElementById("mitSpitzen").value = "";
+    document.getElementById("ohneSpitzen").value = "";
+    document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".spitze-btn").forEach(b => b.classList.remove("active"));
+  } else {
+    spitzenBlock.style.display = "flex";
+    spitzenAnzahlBlock.style.display = "flex";
+    if (value === "Grand") {
+      renderSpitzenButtons(4);
+    } else {
+      renderSpitzenButtons(11);
+    }
+  }
+
+  gewinnstufenBlock.innerHTML = "";
+  const currentIndex = getCurrentSpielIndex();
+  if (currentIndex >= 0) {
+    generateGewinnstufenButtons(currentIndex);
+  }
+
+  const buttonsUI = document.querySelectorAll("#grundwert-buttons button");
+  buttonsUI.forEach(btn => {
+    let baseColor = "black";
+    if (btn.textContent === "♥" || btn.textContent === "♦") baseColor = "red";
+
+    if (btn.textContent === value) {
+      btn.style.backgroundColor = "#4CAF50";
+      btn.style.color = "white";
+      btn.style.fontWeight = "bold";
+    } else {
+      btn.style.backgroundColor = "";
+      btn.style.color = baseColor;
+      btn.style.fontWeight = "";
+    }
+  });
+}
+
+function getCurrentSpielIndex() {
+  const idx = parseInt(document.getElementById("spiel-form").dataset.spielIndex, 10);
+  return isNaN(idx) ? -1 : idx;
+}
+
+function openNewModal(spielIndex = null) {
+  const dialog = document.getElementById("spiel-dialog");
+  const spielNummerSpan = document.getElementById("spielnummer-display");
+  const spieleAnz = document.querySelector('input[name="karten"]:checked')?.value || '0';
+
+  const isPhoneLandscape = window.innerWidth > window.innerHeight && window.innerHeight <= 500;
+  if (isPhoneLandscape) {
+    // Handy-Querformat: Dialog auf native Größe, CSS-Media-Query macht ihn kompakt
+    dialog.style.transform = '';
+  } else {
+    dialog.style.transform = `scale(${scale*0.9})`;
+    dialog.style.transformOrigin = 'top center';
+  }
+
+  resetButtons();
+  document.getElementById("grundwert").value = "";
+  document.getElementById("mitSpitzen").value = "";
+  document.getElementById("ohneSpitzen").value = "";
+
+  if (spielIndex !== null && spielIndex >= 0) {
+    const spiel = spielDaten[spielIndex];
+    document.getElementById("grundwert").value = spiel.grundwert || "";
+    document.getElementById("mitSpitzen").value = spiel.mitSpitzen || "";
+    document.getElementById("ohneSpitzen").value = spiel.ohneSpitzen || "";
+    document.getElementById("spiel-form").dataset.spielIndex = spielIndex;
+    document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = spiel.spieler || "";
+
+    generatePlayerButtons(spielIndex);
+    generateGewinnstufenButtons(spielIndex);
+    spielNummerSpan.textContent = spiel.nr + ' / '+spieleAnz;
+
+    const grundwertMapReverse = {
+      "24": "Grand", "12": "♣", "11": "♠", "10": "♥", "9": "♦", "23": "Null", "E": "Pass"
+    };
+    const selectedText = grundwertMapReverse[spiel.grundwert];
+    if (selectedText) {
+      setGrundwert(selectedText);
+    }
+    const mitSpitzenVal  = parseInt(spiel.mitSpitzen) || 0;
+    const ohneSpitzenVal = parseInt(spiel.ohneSpitzen) || 0;
+
+    if (mitSpitzenVal > 0) {
+        setSpitzen(true);
+        document.querySelectorAll('#spitzen-anzahl .spitze-btn')
+            .forEach(btn => {
+                btn.classList.toggle('active', btn.textContent == mitSpitzenVal);
             });
+    } else if (ohneSpitzenVal > 0) {
+        setSpitzen(false);
+        document.querySelectorAll('#spitzen-anzahl .spitze-btn')
+            .forEach(btn => {
+                btn.classList.toggle('active', btn.textContent == ohneSpitzenVal);
+            });
+    } else {
+        document.querySelectorAll(".spitzen-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById("spitzen-anzahl").style.display = "none";
+    }
+  } else {
+    const emptyIndex = spielDaten.findIndex(s =>
+      !s.grundwert && !s.hand && !s.schneider && !s.schneiderang &&
+      !s.schwarz && !s.schwarzang && !s.offen
+    );
+    const idx = emptyIndex >= 0 ? emptyIndex : spielDaten.length - 1;
 
-            const today = new Date();
-            const dateStr = today.toISOString().slice(0, 10);
+    const s = spielDaten[idx];
+    s.grundwert = "";
+    s.hand = "";
+    s.schneider = "";
+    s.schneiderang = "";
+    s.schwarz = "";
+    s.schwarzang = "";
+    s.offen = "";
+    s.mitSpitzen = "";
+    s.ohneSpitzen = "";
+    s.spieler = "";
 
-	    // UTF-8 BOM hinzufügen: \uFEFF
-	    const BOM = '\uFEFF';
-	    const csvWithBOM = BOM + csv;
+    document.getElementById("spiel-form").dataset.spielIndex = idx;
+    document.getElementById("spiel-form").dataset.ausgewaehlterSpieler = "";
 
-            const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `Endstand_${dateStr}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+    generatePlayerButtons(idx);
+    document.getElementById("gewinnstufen-buttons").innerHTML = "";
 
-            document.getElementById('message').textContent = `CSV-Datei Endstand_${dateStr}.csv wurde heruntergeladen!`;
-        }
+    spielNummerSpan.textContent = idx + 1;
+  }
 
-        function setupRound1() {
-            currentRound = 1;
-            editingPlayer = null;
-            editingSeries = null;
-	    const count = selectedPlayers.length;
+  const geberIdx = parseInt(document.getElementById("spiel-form").dataset.spielIndex, 10);
+  const geberName = spielerNamen[geberIdx % spielerAnzahl];
+  document.getElementById("kartengeber-display").textContent = "(Geber: " + geberName + ")";
 
-            document.getElementById('roundTitle').textContent = 'Serie 1: Ergebnis eintragen';
-            document.getElementById('roundInfo').textContent = 
-                'Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.';
-            document.getElementById('currentResult').placeholder = 'Ergebnis Serie 1 eintragen';
-            document.getElementById('startRound2').style.display = 'none';
-            document.getElementById('exportSection').style.display = 'none';
-            document.getElementById('rankingTitle').textContent = 'Zwischenstand nach Serie 1 ('+count+' Mitspieler)';
-            updatePlayerSelect(true);
-            updateRanking();
-        }
+  dialog.showModal();
+}
 
-        document.getElementById('playerSelect').addEventListener('change', function() {
-            updatePlaceholderForSelection();
-            if (this.value) {
-                document.getElementById('currentResult').focus();
-            }
+
+document.getElementById("btn-gewonnen").addEventListener("click", () => {
+  saveGame(true);
+});
+
+document.getElementById("btn-verloren").addEventListener("click", () => {
+  saveGame(false);
+});
+
+document.getElementById("btn-eingepasst").addEventListener("click", () => {
+  const form = document.getElementById("spiel-form");
+  const index = parseInt(form.dataset.spielIndex, 10);
+  if (isNaN(index)) {
+    alert("Kein gültiges Spiel ausgewählt.");
+    return;
+  }
+  const spiel = spielDaten[index];
+  spiel.grundwert = "E";
+  spiel.spieler = null;
+  spiel.gewonnen = null;
+  spiel.pluswert = "";
+  spiel.minuswert = "";
+  spiel.hand = "";
+  spiel.schneider = "";
+  spiel.schneiderang = "";
+  spiel.schwarz = "";
+  spiel.schwarzang = "";
+  spiel.offen = "";
+  spiel.mitSpitzen = 0;
+  spiel.ohneSpitzen = 0;
+  fillTable();
+  closeSpielDialog();
+});
+
+async function saveSerieToFirestore() {
+  if (!window.__firestore) {
+    console.warn("Firestore noch nicht initialisiert");
+    return;
+  }
+
+  // Prüfen, ob alle Spieler einen echten Namen haben
+  for (let i = 0; i < spielerAnzahl; i++) {
+    if (!spielerNamen[i] || spielerNamen[i] === `Spieler ${i+1}`) {
+      alert(`⚠️ Bitte erst alle Spielernamen auswählen (Spieler ${i+1} fehlt)!`);
+      return;
+    }
+  }
+
+  const datum = new Date().toISOString().split('T')[0];
+  const serie = document.querySelector('input[name="serie"]:checked')?.value || '1';
+  const tisch = document.getElementById('tisch-auswahl')?.value || '1';
+
+  const docId = `${datum}_S${serie}_T${tisch}_${spielerAnzahl}er`;
+
+  const spieler = [];
+  for (let i = 0; i < spielerAnzahl; i++) {
+    const gesamtCell = document.getElementById(`gesamt-p${i+1}`);
+    spieler.push({
+      name: spielerNamen[i],
+      gesamtpunkte: parseInt(gesamtCell?.textContent) || 0
+    });
+  }
+
+  try {
+    const { db, doc, setDoc, getDoc } = window.__firestore;
+    const docRef = doc(db, "spieltage", docId);
+
+    // Kollisionsprüfung: existiert bereits ein Eintrag?
+    const vorhanden = await getDoc(docRef);
+    if (vorhanden.exists()) {
+      const altSpielerArr = vorhanden.data().spieler || [];
+      const altNamen = altSpielerArr.map(s => s.name);
+      const neuNamen = spieler.map(s => s.name);
+      const gleicheSpieler = altNamen.length === neuNamen.length &&
+        altNamen.every(n => neuNamen.includes(n));
+
+      if (!gleicheSpieler) {
+        // Andere Spieler — vermutlich falscher Tisch
+        const weiter = confirm(
+          `⚠️ Achtung: Für Tisch ${tisch}, Serie ${serie} am ${datum} ist bereits ein Eintrag vorhanden mit anderen Spielern:\n\n` +
+          `Vorhandener Eintrag:\n  ${altNamen.join(', ')}\n\n` +
+          `Aktueller Eintrag:\n  ${neuNamen.join(', ')}\n\n` +
+          `Wurde vielleicht der falsche Tisch gewählt?\n\n` +
+          `Trotzdem überschreiben?`
+        );
+        if (!weiter) return;
+      } else {
+        // Gleiche Spieler — prüfen, ob Punkte abweichen (evtl. falsche Serie gewählt)
+        const punkteGleich = altSpielerArr.every(alt => {
+          const neu = spieler.find(s => s.name === alt.name);
+          return neu && Number(neu.gesamtpunkte) === Number(alt.gesamtpunkte);
         });
+        if (!punkteGleich) {
+          const altPunkte = altSpielerArr.map(s => `  ${s.name}: ${s.gesamtpunkte}`).join('\n');
+          const neuPunkte = spieler.map(s => `  ${s.name}: ${s.gesamtpunkte}`).join('\n');
+          const weiter = confirm(
+            `⚠️ Achtung: Für Tisch ${tisch}, Serie ${serie} am ${datum} ist bereits ein Eintrag mit abweichenden Gesamtpunkten vorhanden:\n\n` +
+            `Vorhandener Eintrag:\n${altPunkte}\n\n` +
+            `Aktueller Eintrag:\n${neuPunkte}\n\n` +
+            `Wurde vielleicht die falsche Serie gewählt?\n\n` +
+            `Trotzdem überschreiben?`
+          );
+          if (!weiter) return;
+        }
+      }
+    }
 
-        document.getElementById('currentResult').addEventListener('keydown', function(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                saveCurrentResult();
-            }
-        });
+    await setDoc(docRef, {
+      datum, serie, tisch, spielerAnzahl, spieler,
+      gespeichertAm: new Date().toISOString()
+    });
+    alert("✅ Serie in Firebase gespeichert!");
+  } catch (e) {
+    console.error("Firestore-Fehler:", e);
+    if (e.code === "permission-denied" || /permission/i.test(e.message)) {
+      alert("❌ Speichern nur am Clubabend möglich.");
+    } else {
+      alert("❌ Speichern in Firebase fehlgeschlagen: " + e.message);
+    }
+  }
+}
 
-        // Brücke für den Firestore-Import im Module-Script (siehe unten).
-        // Notwendig, weil let-Variablen nicht automatisch auf window liegen.
-        window.skatImportHelper = {
-            getPlayers: () => allPlayers.slice(),
-            addPlayer: (name, isGuest) => {
-                addPlayerToList(name);
-                if (isGuest) guests.add(name);
-            },
-            checkPlayer: (name) => {
-                const cb = document.getElementById('cb_' + name);
-                if (cb) cb.checked = true;
-            },
-            setResult: (name, serie, punkte) => {
-                if (!results[name]) return;
-                const num = typeof punkte === 'number' ? punkte : parseFloat(punkte);
-                if (Number.isNaN(num)) return;
-                if (serie === '1') results[name].res1 = num;
-                else if (serie === '2') results[name].res2 = num;
-            },
-            hasAnyResults: () => allPlayers.some(p => results[p] && (results[p].res1 !== '' || results[p].res2 !== '')),
-            resetAll: () => {
-                allPlayers.forEach(p => {
-                    results[p] = { res1: '', res2: '' };
-                    const cb = document.getElementById('cb_' + p);
-                    if (cb) cb.checked = false;
-                });
-                currentRound = 1;
-                editingPlayer = null;
-                editingSeries = null;
-            },
-            finalize: (hasSerie2, mode) => {
-                selectedPlayers = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
-                // Im Merge-Modus die aktuelle Runde nicht zurückstufen
-                if (mode === 'merge') {
-                    const anyRes2 = allPlayers.some(p => results[p] && results[p].res2 !== '');
-                    if (hasSerie2 || anyRes2 || currentRound === 2) {
-                        currentRound = 2;
-                        startRound2();
-                    } else {
-                        setupRound1();
-                    }
-                } else if (hasSerie2) {
-                    currentRound = 2;
-                    startRound2();
-                } else {
-                    currentRound = 1;
-                    setupRound1();
-                }
-                updateRanking();
-                checkRoundComplete();
-                saveState();
-            }
-        };
-    </script>
-    <div class="footer">
-    © 2026 by Frank Bertram (V1.7)
+function saveGame(gewonnen) {
+    const form = document.getElementById("spiel-form");
+    const index = parseInt(form.dataset.spielIndex, 10);
+    const neuerSpieler = parseInt(form.dataset.ausgewaehlterSpieler, 10);
+    const n = spielerAnzahl;
+
+    if (isNaN(index)) {
+        alert("Kein gültiges Spiel ausgewählt.");
+        return;
+    }
+
+	const grundwertInput = document.getElementById("grundwert");
+	const grundwert = grundwertInput ? grundwertInput.value.trim() : form.dataset.grundwert || "E";
+	if (!grundwert) {
+		alert("Bitte Spielart (Grand,♣,♠,♥,♦,Null oder Eingepasst) auswählen.");
+		return;
+	}
+
+    const istPass = (grundwert === "E" || grundwert === "Pass");
+
+    let spielerGueltig = !isNaN(neuerSpieler) && neuerSpieler >= 1 && neuerSpieler <= n;
+    if (!spielerGueltig && !istPass) {
+        alert("Bitte einen Spieler auswählen (außer bei Pass).");
+        return;
+    }
+
+    const spiel = spielDaten[index];
+
+    if (spiel.offen === "X" && grundwert!="23" &&
+    	(spiel.hand === "" || spiel.schneider === ""  || spiel.schneiderang === "" || spiel.schwarz === ""  || spiel.schwarzang === "")) {
+        alert("❌ Ouvert nur bei Hand + Schneider + Schneider Ang. + Schwarz + Schwarz Ang. möglich!");
+        return;
+    }
+    if (spiel.schwarzang === "X" &&
+    	(spiel.hand === "" || spiel.schneider === ""  || spiel.schneiderang === "" || spiel.schwarz === "")) {
+        alert("❌ Schwarz angesagt nur bei Hand + Schneider + Schneider Ang. + Schwarz möglich!");
+        return;
+    }
+    if (spiel.schwarz === "X" && spiel.schneider === "") {
+        alert("❌ Schwarz nur bei Schneider möglich!");
+        return;
+    }
+    if (spiel.schneiderang === "X" && (spiel.hand === "" || spiel.schneider === "")) {
+        alert("❌ Schneider angesagt nur bei Hand + Schneider möglich!");
+        return;
+    }
+
+    const alterSpielerVorher = spiel.spieler;
+    const warGewonnen        = spiel.gewonnen;
+
+    spiel.grundwert     = grundwert;
+    spiel.spieler       = istPass ? null : neuerSpieler;
+    spiel.gewonnen      = istPass ? null : gewonnen;
+
+    const mitInput  = document.getElementById("mitSpitzen");
+    const ohneInput = document.getElementById("ohneSpitzen");
+
+    let mit  = mitInput  ? parseInt(mitInput.value)  || 0 : 0;
+    let ohne = ohneInput ? parseInt(ohneInput.value) || 0 : 0;
+
+    if (mit === 0 && ohne === 0) {
+        mit = 1;
+        ohne = 0;
+        if (mitInput)  mitInput.value  = "1";
+        if (ohneInput) ohneInput.value = "";
+        setSpitzen(true);
+    }
+
+    spiel.mitSpitzen  = mit;
+    spiel.ohneSpitzen = ohne;
+
+    if (spiel.schwarz === "X" && spiel.mitSpitzen === 0) {
+        alert("❌ Schwarz ohne Kreuz Bube nicht möglich!");
+        return;
+    }
+
+    if (istPass) {
+        spiel.pluswert  = "";
+        spiel.minuswert = "";
+        spiel.hand = "";
+        spiel.schneider = "";
+        spiel.schneiderang = "";
+        spiel.schwarz = "";
+        spiel.schwarzang = "";
+        spiel.offen = "";
+        spiel.mitSpitzen = 0;
+        fillTable();
+        closeSpielDialog();
+        return;
+    }
+
+    const basisWert = berechneSpielwert(spiel);
+    const spielwert = basisWert * (gewonnen ? 1 : 2);
+    const deltaNeu  = gewonnen ? spielwert : -spielwert;
+
+    if (alterSpielerVorher && alterSpielerVorher !== neuerSpieler) {
+        const altKey = `p${alterSpielerVorher}`;
+        spiel[`${altKey}_delta`] = 0;
+
+        if (warGewonnen === true) {
+            spiel[`${altKey}_gew`] = Math.max(0, (parseInt(spiel[`${altKey}_gew`]) || 0) - 1);
+        } else if (warGewonnen === false) {
+            spiel[`${altKey}_verl`] = Math.max(0, (parseInt(spiel[`${altKey}_verl`]) || 0) - 1);
+        }
+    }
+
+    const neuKey = `p${neuerSpieler}`;
+    spiel[`${neuKey}_delta`] = deltaNeu;
+
+    if (gewonnen) {
+        spiel[`${neuKey}_gew`]  = (parseInt(spiel[`${neuKey}_gew`])  || 0) + 1;
+        spiel[`${neuKey}_verl`] = parseInt(spiel[`${neuKey}_verl`]) || 0;
+    } else {
+        spiel[`${neuKey}_gew`]  = parseInt(spiel[`${neuKey}_gew`])  || 0;
+        spiel[`${neuKey}_verl`] = (parseInt(spiel[`${neuKey}_verl`]) || 0) + 1;
+    }
+
+    if (gewonnen) {
+        spiel.pluswert  = spielwert;
+        spiel.minuswert = "";
+    } else {
+        spiel.pluswert  = "";
+        spiel.minuswert = -spielwert;
+    }
+
+    fillTable();
+    closeSpielDialog();
+}
+
+function resizeSpielDaten(kartenAnzahl) {
+  if (spielDaten.length > kartenAnzahl) {
+    spielDaten.length = kartenAnzahl;
+  }
+  while (spielDaten.length < kartenAnzahl) {
+    spielDaten.push({
+      nr: spielDaten.length + 1,
+      grundwert: "", hand: "", schneider: "", schwarz: "",
+      schneiderang: "", schwarzang: "", offen: "",
+      mitSpitzen: "", ohneSpitzen: "", spielwert: "",
+      pluswert: "", minuswert: "",
+      p1_punkte: "", p1_gew: "", p1_verl: "",
+      p2_punkte: "", p2_gew: "", p2_verl: "",
+      p3_punkte: "", p3_gew: "", p3_verl: "",
+      p4_punkte: "", p4_gew: "", p4_verl: "",
+      p1_delta: "", p2_delta: "", p3_delta: "", p4_delta: "",
+      eingepasst: "", spieler: "",
+      gewonnen: null
+    });
+  }
+  console.log(`spielDaten: ${spielDaten.length} Zeilen, letzte nr: ${spielDaten[spielDaten.length-1]?.nr}`);
+  fillTable();
+}
+
+function onKartenChange() {
+  resizeSpielDaten(parseInt(this.value));
+}
+
+document.querySelectorAll('input[name="karten"]').forEach(radio => {
+  radio.addEventListener('change', onKartenChange);
+});
+
+// ── Spieleranzahl wechseln ─────────────────────────────────────────
+document.querySelectorAll('input[name="spieleranzahl"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    // Prüfen ob bereits Spiele eingetragen sind
+    const hatEintraege = spielDaten.some(s => s.grundwert || s.hand || s.schneider ||
+      s.schneiderang || s.schwarz || s.schwarzang || s.offen);
+    if (hatEintraege) {
+      alert("⚠️ Wechsel nicht möglich — es sind bereits Spiele eingetragen!");
+      // Radio zurücksetzen
+      document.querySelector(`input[name="spieleranzahl"][value="${spielerAnzahl}"]`).checked = true;
+      return;
+    }
+    spielerAnzahl = parseInt(this.value);
+    buildTableStructure();
+    updateKartenAuswahl();
+    generatePlayerNameButtons();
+    updateCopyright();
+  });
+});
+
+function updateKartenAuswahl() {
+  const container = document.getElementById("karten-auswahl");
+  const ist3er = (spielerAnzahl === 3);
+  const wert1 = ist3er ? 27 : 36;
+  const wert2 = ist3er ? 36 : 48;
+
+  container.innerHTML = `
+    <label class="radio-label"><input type="radio" name="karten" value="${wert1}" checked>${wert1}</label>
+    <label class="radio-label"><input type="radio" name="karten" value="${wert2}">${wert2}</label>
+  `;
+
+  // Event-Listener für neue Radio-Buttons
+  container.querySelectorAll('input[name="karten"]').forEach(r => {
+    r.addEventListener('change', onKartenChange);
+  });
+
+  // spielDaten auf neuen Standard anpassen
+  resizeSpielDaten(wert1);
+}
+
+function updateCopyright() {
+  const width = screen.width;
+  const height = screen.height;
+  document.getElementById('copyright').innerHTML =
+    `© 2026 by Frank Bertram (V1.16) | ${spielerAnzahl}er Liste | Width: ${width}px | Height: ${height}px | Scale: ${scale}`;
+}
+
+
+// ── Speicher-Abstraktion (localStorage → IndexedDB Fallback) ──────
+const STORE_KEY = 'skatSpielstand';
+let _db = null;
+
+function _storageOK() {
+  try {
+    localStorage.setItem('_test', '1');
+    localStorage.removeItem('_test');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function _openDB() {
+  return new Promise((resolve, reject) => {
+    if (_db) { resolve(_db); return; }
+    const req = indexedDB.open('SkatDB', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('state');
+    req.onsuccess = () => { _db = req.result; resolve(_db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function _idbSet(key, val) {
+  return _openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('state', 'readwrite');
+    tx.objectStore('state').put(val, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+function _idbGet(key) {
+  return _openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('state', 'readonly');
+    const req = tx.objectStore('state').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+function _idbDel(key) {
+  return _openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('state', 'readwrite');
+    tx.objectStore('state').delete(key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+// ── Spielstand speichern / laden ──────────────────────────────────
+function _buildState() {
+  return {
+    spielDaten: spielDaten,
+    spielerAnzahl: spielerAnzahl,
+    spielerNamen: spielerNamen,
+    serie: document.querySelector('input[name="serie"]:checked')?.value || '1',
+    tisch: document.getElementById('tisch-auswahl')?.value || '1',
+    karten: document.querySelector('input[name="karten"]:checked')?.value
+  };
+}
+
+function saveState() {
+  const json = JSON.stringify(_buildState());
+  if (_storageOK()) {
+    localStorage.setItem(STORE_KEY, json);
+  }
+  // Immer auch in IndexedDB speichern (robuster auf iOS)
+  _idbSet(STORE_KEY, json).catch(e => console.log('IDB save:', e));
+}
+
+function _applyState(state) {
+  spielerAnzahl = state.spielerAnzahl || 4;
+  const saRadio = document.querySelector(`input[name="spieleranzahl"][value="${spielerAnzahl}"]`);
+  if (saRadio) saRadio.checked = true;
+
+  if (state.spielerNamen) {
+    for (let i = 0; i < state.spielerNamen.length; i++) {
+      spielerNamen[i] = state.spielerNamen[i];
+    }
+  }
+
+  // Spieldaten VOR updateKartenAuswahl wiederherstellen,
+  // damit resizeSpielDaten/fillTable/saveState die Daten nicht überschreibt
+  if (state.spielDaten && state.spielDaten.length > 0) {
+    spielDaten = state.spielDaten;
+  }
+
+  const serieRadio = document.querySelector(`input[name="serie"][value="${state.serie}"]`);
+  if (serieRadio) serieRadio.checked = true;
+  const tischSelect = document.getElementById('tisch-auswahl');
+  if (tischSelect && state.tisch) tischSelect.value = state.tisch;
+
+  updateKartenAuswahl();
+  if (state.karten) {
+    const kartenRadio = document.querySelector(`input[name="karten"][value="${state.karten}"]`);
+    if (kartenRadio) kartenRadio.checked = true;
+  }
+}
+
+function loadState() {
+  return new Promise(resolve => {
+    // 1. Versuch: localStorage
+    if (_storageOK()) {
+      const json = localStorage.getItem(STORE_KEY);
+      if (json) {
+        try {
+          _applyState(JSON.parse(json));
+          resolve(true);
+          return;
+        } catch (e) { /* weiter zu IDB */ }
+      }
+    }
+    // 2. Versuch: IndexedDB (Fallback für iOS file://)
+    _idbGet(STORE_KEY).then(json => {
+      if (json) {
+        try {
+          _applyState(JSON.parse(json));
+          resolve(true);
+          return;
+        } catch (e) { /* leer starten */ }
+      }
+      resolve(false);
+    }).catch(() => resolve(false));
+  });
+}
+
+function clearState() {
+  if (_storageOK()) localStorage.removeItem(STORE_KEY);
+  _idbDel(STORE_KEY).catch(() => {});
+}
+
+// Serie/Tisch-Änderungen speichern
+document.querySelectorAll('input[name="serie"]').forEach(radio => {
+  radio.addEventListener('change', saveState);
+});
+document.getElementById('tisch-auswahl').addEventListener('change', saveState);
+
+window.addEventListener("load", () => {
+  loadState().then(loaded => {
+    if (!loaded) {
+      spielerAnzahl = getSpielerAnzahl();
+    }
+    buildTableStructure();
+    fillTable();
+    generatePlayerNameButtons();
+    createCSVButton();
+    createNeuStartButton();
+    updateCopyright();
+    console.log(screen.width + 'x' + screen.height);
+  });
+});
+
+
+</script>
+    <div id="copyright" style="font-size:8px;">
+    © 2026 by Frank Bertram (V1.16)
     </div>
-
-    <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
-        <div style="background:white;padding:20px;border-radius:8px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
-            <h3 style="margin:0 0 10px 0;">Spieltag laden</h3>
-            <p style="margin:0 0 15px 0;font-size:14px;">Es sind bereits Ergebnisse vorhanden. Wie soll der Import erfolgen?</p>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                <button onclick="resolveImportMode('all')" style="background:#e53935;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Alle vorhandenen Einträge löschen</button>
-                <button onclick="resolveImportMode('merge')" style="background:#1976d2;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Nur betroffene Einträge überschreiben</button>
-                <button onclick="resolveImportMode('cancel')" style="background:#9e9e9e;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Abbrechen</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDmiQvDu0pxQYoidaZfRVY0BXZjLOHhw7w",
-            authDomain: "skatverein-b77ef.firebaseapp.com",
-            projectId: "skatverein-b77ef",
-            storageBucket: "skatverein-b77ef.firebasestorage.app",
-            messagingSenderId: "763387283518",
-            appId: "1:763387283518:web:9edf27d79876cf2059296f"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-
-        onAuthStateChanged(auth, user => {
-            const statusEl = document.getElementById('authStatus');
-            const signInBtn = document.getElementById('signInBtn');
-            const signOutBtn = document.getElementById('signOutBtn');
-            const copyUidBtn = document.getElementById('copyUidBtn');
-            if (!statusEl) return;
-            if (user) {
-                console.log('Angemeldet:', user.displayName, user.email, 'UID:', user.uid);
-                statusEl.textContent = `${user.displayName || user.email} – UID: ${user.uid}`;
-                statusEl.style.color = '#2e7d32';
-                if (signInBtn) signInBtn.style.display = 'none';
-                if (signOutBtn) signOutBtn.style.display = 'inline-block';
-                if (copyUidBtn) copyUidBtn.style.display = 'inline-block';
-            } else {
-                statusEl.textContent = 'nicht angemeldet';
-                statusEl.style.color = '#888';
-                if (signInBtn) signInBtn.style.display = 'inline-block';
-                if (signOutBtn) signOutBtn.style.display = 'none';
-                if (copyUidBtn) copyUidBtn.style.display = 'none';
-            }
-        });
-
-        window.signInGoogle = function() {
-            signInWithPopup(auth, provider).then(result => {
-                const u = result.user;
-                console.log('Angemeldet:', u.displayName, u.email, 'UID:', u.uid);
-            }).catch(err => {
-                console.error('Login-Fehler:', err);
-                alert('Login fehlgeschlagen: ' + (err && err.message ? err.message : err));
-            });
-        };
-
-        let importModeResolver = null;
-        function askImportMode() {
-            return new Promise(resolve => {
-                importModeResolver = resolve;
-                document.getElementById('importModeModal').style.display = 'flex';
-            });
-        }
-        window.resolveImportMode = function(mode) {
-            document.getElementById('importModeModal').style.display = 'none';
-            if (importModeResolver) {
-                const r = importModeResolver;
-                importModeResolver = null;
-                r(mode);
-            }
-        };
-        window.signOutGoogle = function() {
-            signOut(auth);
-        };
-        window.copyUid = function() {
-            const u = auth.currentUser;
-            if (!u) { alert('Nicht angemeldet.'); return; }
-            const txt = u.uid;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(txt).then(
-                    () => alert('UID in Zwischenablage:\n' + txt),
-                    () => prompt('UID (manuell kopieren):', txt)
-                );
-            } else {
-                prompt('UID (manuell kopieren):', txt);
-            }
-        };
-
-        window.importFromFirestore = async function() {
-            if (!window.skatImportHelper) {
-                alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
-                return;
-            }
-            const dateInput = document.getElementById('importDate');
-            const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
-            const msgEl = document.getElementById('message');
-            msgEl.textContent = `Lade aus Firestore (${datum}) …`;
-            try {
-                const q = query(collection(db, 'spieltage'), where('datum', '==', datum));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                    msgEl.textContent = '';
-                    alert('Keine Firestore-Einträge für ' + datum + ' gefunden.');
-                    return;
-                }
-                let mode = 'all';
-                if (window.skatImportHelper.hasAnyResults()) {
-                    mode = await askImportMode();
-                    if (mode === 'cancel') {
-                        msgEl.textContent = '';
-                        return;
-                    }
-                }
-                if (mode === 'all') {
-                    window.skatImportHelper.resetAll();
-                }
-                const knownPlayers = new Set(window.skatImportHelper.getPlayers());
-                let hasSerie2 = false;
-                let count = 0;
-                snap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    const serie = String(data.serie);
-                    if (serie === '2') hasSerie2 = true;
-                    (data.spieler || []).forEach(s => {
-                        if (!s || !s.name) return;
-                        if (!knownPlayers.has(s.name)) {
-                            window.skatImportHelper.addPlayer(s.name, true);
-                            knownPlayers.add(s.name);
-                        }
-                        window.skatImportHelper.checkPlayer(s.name);
-                        window.skatImportHelper.setResult(s.name, serie, s.gesamtpunkte);
-                        count++;
-                    });
-                });
-                window.skatImportHelper.finalize(hasSerie2, mode);
-                msgEl.textContent = `${count} Ergebnisse aus Firestore importiert (${snap.size} Tisch-Dokumente, ${datum}).`;
-            } catch (err) {
-                console.error(err);
-                msgEl.textContent = '';
-                alert('Firestore-Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
-            }
-        };
-
-        function normalizeDate(d) {
-            d = (d || '').trim();
-            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-            const m = d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-            return null;
-        }
-
-        window.uploadCsvToFirestore = async function(csvText) {
-            const msgEl = document.getElementById('message');
-            // BOM entfernen
-            if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-            const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-            if (lines.length === 0) { alert('CSV ist leer.'); return; }
-            // Header-Erkennung: wenn erste Zeile "Datum" enthält → überspringen
-            const startIdx = /datum/i.test(lines[0]) ? 1 : 0;
-
-            const rows = [];
-            const problems = [];
-            for (let i = startIdx; i < lines.length; i++) {
-                const parts = lines[i].split(';').map(p => p.trim());
-                if (parts.length < 4) { problems.push(`Zeile ${i + 1}: zu wenige Spalten`); continue; }
-                const datum = normalizeDate(parts[0]);
-                const serie = String(parseInt(parts[1], 10));
-                const name = parts[2];
-                const punkte = parseFloat(parts[3].replace(',', '.'));
-                if (!datum) { problems.push(`Zeile ${i + 1}: Datum "${parts[0]}" ungültig`); continue; }
-                if (serie !== '1' && serie !== '2') { problems.push(`Zeile ${i + 1}: Serie "${parts[1]}" ungültig`); continue; }
-                if (!name) { problems.push(`Zeile ${i + 1}: Name fehlt`); continue; }
-                if (Number.isNaN(punkte)) { problems.push(`Zeile ${i + 1}: Punkte "${parts[3]}" ungültig`); continue; }
-                rows.push({ datum, serie, name, punkte });
-            }
-            if (rows.length === 0) {
-                alert('Keine gültigen Zeilen in der CSV gefunden.\n\n' + problems.slice(0, 10).join('\n'));
-                return;
-            }
-
-            // Gruppieren nach datum+serie
-            const groups = new Map();
-            for (const r of rows) {
-                const key = `${r.datum}||${r.serie}`;
-                if (!groups.has(key)) groups.set(key, []);
-                groups.get(key).push(r);
-            }
-
-            msgEl.textContent = `Lade ${rows.length} Zeilen hoch …`;
-            let added = 0, skipped = 0;
-            try {
-                for (const [key, groupRows] of groups) {
-                    const [datum, serie] = key.split('||');
-                    const tisch0Id = `${datum}_S${serie}_T0`;
-                    const q = query(collection(db, 'spieltage'),
-                        where('datum', '==', datum), where('serie', '==', serie));
-                    const snap = await getDocs(q);
-
-                    const existing = new Set();
-                    let tisch0ExistingPlayers = [];
-                    snap.forEach(d => {
-                        const data = d.data();
-                        (data.spieler || []).forEach(s => { if (s && s.name) existing.add(s.name); });
-                        if (d.id === tisch0Id) tisch0ExistingPlayers = data.spieler || [];
-                    });
-
-                    const newEntries = [];
-                    for (const r of groupRows) {
-                        if (existing.has(r.name)) { skipped++; continue; }
-                        newEntries.push({ name: r.name, gesamtpunkte: r.punkte });
-                        existing.add(r.name);
-                    }
-                    if (newEntries.length === 0) continue;
-
-                    const merged = [...tisch0ExistingPlayers, ...newEntries];
-                    await setDoc(doc(db, 'spieltage', tisch0Id), {
-                        datum, serie, tisch: '0',
-                        spieler: merged,
-                        spielerAnzahl: merged.length,
-                        gespeichertAm: new Date().toISOString()
-                    });
-                    added += newEntries.length;
-                }
-                let txt = `${added} Spieler nachgeladen, ${skipped} übersprungen (bereits vorhanden).`;
-                if (problems.length) txt += ` ${problems.length} fehlerhafte Zeile(n) – siehe Konsole.`;
-                msgEl.textContent = txt;
-                if (problems.length) console.warn('CSV-Probleme:', problems);
-                alert('CSV-Upload erfolgreich.\n\n' + txt);
-            } catch (err) {
-                console.error(err);
-                msgEl.textContent = '';
-                alert('Firestore-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err));
-            }
-        };
-    </script>
 </body>
 </html>
