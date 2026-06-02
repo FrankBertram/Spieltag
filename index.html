@@ -150,6 +150,8 @@
             <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
             <div id="importSection" style="display:none;align-items:center;gap:6px;margin:0 0 10px 0;flex-wrap:wrap;">
                 <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Aus Firestore laden</button>
+                <button id="saveSerie1Btn" onclick="saveSerieToFirestore(1)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 1 → T0</button>
+                <button id="saveSerie2Btn" onclick="saveSerieToFirestore(2)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 2 → T0</button>
                 <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
                 <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
                     <option value="">-- Spieltag --</option>
@@ -209,6 +211,8 @@
         let allPlayers = [];
         let selectedPlayers = [];
         let results = {};
+        // imported[name] = { res1: bool, res2: bool } – true wenn aus Firestore importiert
+        let imported = {};
         let currentRound = 1;
         let editingPlayer = null;
         let editingSeries = null;
@@ -283,7 +287,7 @@
         function saveState() {
             const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
             localStorage.setItem('skat_state', JSON.stringify({
-                allPlayers, selectedPlayers: checked, results, currentRound, guests: [...guests]
+                allPlayers, selectedPlayers: checked, results, imported, currentRound, guests: [...guests]
             }));
         }
 
@@ -305,6 +309,13 @@
                     if (results[name]) {
                         results[name].res1 = state.results[name].res1;
                         results[name].res2 = state.results[name].res2;
+                    }
+                });
+                // Import-Markierungen wiederherstellen
+                Object.keys(state.imported || {}).forEach(name => {
+                    if (imported[name]) {
+                        imported[name].res1 = !!state.imported[name].res1;
+                        imported[name].res2 = !!state.imported[name].res2;
                     }
                 });
                 currentRound = state.currentRound || 1;
@@ -349,6 +360,7 @@ function loadPlayers(text) {
     allPlayers = [];
     selectedPlayers = [];
     results = {};
+    imported = {};
     guests = new Set();
 
     // Checkbox-Container leeren
@@ -378,6 +390,7 @@ function loadPlayers(text) {
 
             allPlayers.push(name);
             results[name] = { res1: '', res2: '' };
+            imported[name] = { res1: false, res2: false };
 
             const container = document.getElementById('playerCheckboxes');
             const div = document.createElement('div');
@@ -597,8 +610,10 @@ function loadPlayers(text) {
 
             if (targetSerie === 1) {
                 results[selected].res1 = numValue;
+                if (imported[selected]) imported[selected].res1 = false;
             } else if (targetSerie === 2) {
                 results[selected].res2 = numValue;
+                if (imported[selected]) imported[selected].res2 = false;
             }
 
             document.getElementById('message').textContent =
@@ -680,6 +695,8 @@ function updateRanking() {
         name,
         res1: results[name].res1,
         res2: results[name].res2,
+        imp1: imported[name] ? imported[name].res1 : false,
+        imp2: imported[name] ? imported[name].res2 : false,
         total: (results[name].res1 || 0) + (results[name].res2 || 0)
     }));
 
@@ -723,19 +740,21 @@ function updateRanking() {
         row.className = isTableChange ? 'thick-line' : '';
 
         const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const res1Html = p.res1 !== '' ? (p.imp1 ? `<em>${p.res1}</em>` : p.res1) : '-';
+        const res2Html = p.res2 !== '' ? (p.imp2 ? `<em>${p.res2}</em>` : p.res2) : '-';
         row.innerHTML = `
             <td>${rank}</td>
             <td>${p.name}</td>
             <td>
                 <div class="edit-cell">
-                    ${p.res1 !== '' ? p.res1 : '-'}
+                    ${res1Html}
                     ${p.res1 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 1)">Kor.</button>` : ''}
                 </div>
             </td>
             <td>${p.table}</td>
             <td>
                 <div class="edit-cell">
-                    ${p.res2 !== '' ? p.res2 : '-'}
+                    ${res2Html}
                     ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 2)">Kor.</button>` : ''}
                 </div>
             </td>
@@ -847,13 +866,22 @@ function updateRanking() {
                 if (!results[name]) return;
                 const num = typeof punkte === 'number' ? punkte : parseFloat(punkte);
                 if (Number.isNaN(num)) return;
-                if (serie === '1') results[name].res1 = num;
-                else if (serie === '2') results[name].res2 = num;
+                if (!imported[name]) imported[name] = { res1: false, res2: false };
+                if (serie === '1') { results[name].res1 = num; imported[name].res1 = true; }
+                else if (serie === '2') { results[name].res2 = num; imported[name].res2 = true; }
             },
             hasAnyResults: () => allPlayers.some(p => results[p] && (results[p].res1 !== '' || results[p].res2 !== '')),
+            getManualEntries: (serie) => {
+                // Liefert alle manuell eingetragenen (nicht aus Firestore importierten) Ergebnisse der Serie.
+                const key = serie === 1 ? 'res1' : 'res2';
+                return allPlayers
+                    .filter(p => results[p] && results[p][key] !== '' && !(imported[p] && imported[p][key]))
+                    .map(p => ({ name: p, gesamtpunkte: results[p][key] }));
+            },
             resetAll: () => {
                 allPlayers.forEach(p => {
                     results[p] = { res1: '', res2: '' };
+                    imported[p] = { res1: false, res2: false };
                     const cb = document.getElementById('cb_' + p);
                     if (cb) cb.checked = false;
                 });
@@ -886,7 +914,7 @@ function updateRanking() {
         };
     </script>
     <div class="footer">
-    © 2026 by Frank Bertram (V1.7)
+    © 2026 by Frank Bertram (V1.8)
     </div>
 
     <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
@@ -1035,6 +1063,67 @@ function updateRanking() {
                 console.error(err);
                 msgEl.textContent = '';
                 alert('Firestore-Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        window.saveSerieToFirestore = async function(serie) {
+            if (!window.skatImportHelper) {
+                alert('App ist noch nicht bereit – bitte einen Moment warten und erneut klicken.');
+                return;
+            }
+            if (serie !== 1 && serie !== 2) return;
+            const dateInput = document.getElementById('importDate');
+            const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+            const msgEl = document.getElementById('message');
+            const entries = window.skatImportHelper.getManualEntries(serie);
+            if (entries.length === 0) {
+                alert(`Keine manuell eingetragenen Ergebnisse für Serie ${serie} vorhanden.`);
+                return;
+            }
+            if (!confirm(`${entries.length} Eintrag/Einträge der Serie ${serie} als T0 für ${datum} in Firestore speichern?`)) {
+                return;
+            }
+            const serieStr = String(serie);
+            const tisch0Id = `${datum}_S${serieStr}_T0`;
+            msgEl.textContent = `Lade Serie ${serie} hoch …`;
+            try {
+                // Existierende Einträge ermitteln, damit nichts doppelt geschrieben wird.
+                const q = query(collection(db, 'spieltage'),
+                    where('datum', '==', datum), where('serie', '==', serieStr));
+                const snap = await getDocs(q);
+                const existing = new Set();
+                let tisch0ExistingPlayers = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    (data.spieler || []).forEach(s => { if (s && s.name) existing.add(s.name); });
+                    if (d.id === tisch0Id) tisch0ExistingPlayers = data.spieler || [];
+                });
+                const newEntries = [];
+                let skipped = 0;
+                for (const e of entries) {
+                    if (existing.has(e.name)) { skipped++; continue; }
+                    newEntries.push(e);
+                }
+                if (newEntries.length === 0) {
+                    msgEl.textContent = '';
+                    alert(`Alle ${entries.length} Einträge sind bereits in Firestore vorhanden – nichts hochgeladen.`);
+                    return;
+                }
+                const merged = [...tisch0ExistingPlayers, ...newEntries];
+                await setDoc(doc(db, 'spieltage', tisch0Id), {
+                    datum, serie: serieStr, tisch: '0',
+                    spieler: merged,
+                    spielerAnzahl: merged.length,
+                    gespeichertAm: new Date().toISOString()
+                });
+                const txt = `Serie ${serie}: ${newEntries.length} Eintrag/Einträge hochgeladen` +
+                    (skipped > 0 ? `, ${skipped} übersprungen (bereits vorhanden).` : '.');
+                msgEl.textContent = txt;
+                alert('Upload erfolgreich.\n\n' + txt);
+            } catch (err) {
+                console.error(err);
+                msgEl.textContent = '';
+                alert('Firestore-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err));
             }
         };
 
