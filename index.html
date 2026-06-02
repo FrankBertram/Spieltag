@@ -740,8 +740,9 @@ function updateRanking() {
         row.className = isTableChange ? 'thick-line' : '';
 
         const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const res1Html = p.res1 !== '' ? (p.imp1 ? `<em>${p.res1}</em>` : p.res1) : '-';
-        const res2Html = p.res2 !== '' ? (p.imp2 ? `<em>${p.res2}</em>` : p.res2) : '-';
+        const manualStyle = 'font-style:italic;color:#d32f2f;';
+        const res1Html = p.res1 !== '' ? (p.imp1 ? String(p.res1) : `<span style="${manualStyle}">${p.res1}</span>`) : '-';
+        const res2Html = p.res2 !== '' ? (p.imp2 ? String(p.res2) : `<span style="${manualStyle}">${p.res2}</span>`) : '-';
         row.innerHTML = `
             <td>${rank}</td>
             <td>${p.name}</td>
