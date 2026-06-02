@@ -149,18 +149,24 @@
         
         <div class="middle">
             <h3 id="roundTitle">S1: Ergebnis eintragen</h3>
-            <div id="importSection" style="display:none;align-items:center;gap:6px;margin:0 0 10px 0;flex-wrap:wrap;">
-                <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Aus Firestore laden</button>
-                <button id="saveSerie1Btn" onclick="saveSerieToFirestore(1)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 1 → T0</button>
-                <button id="saveSerie2Btn" onclick="saveSerieToFirestore(2)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 2 → T0</button>
-                <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
-                <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
-                    <option value="">-- Spieltag --</option>
-                </select>
-                <button id="signInBtn" onclick="signInGoogle()" style="background:#424242;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Anmelden</button>
-                <button id="signOutBtn" onclick="signOutGoogle()" style="display:none;background:#9e9e9e;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Abmelden</button>
-                <button id="copyUidBtn" onclick="copyUid()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">UID kopieren</button>
-                <span id="authStatus" style="font-size:12px;color:#888;">nicht angemeldet</span>
+            <div id="importSection" style="display:none;flex-direction:column;gap:6px;margin:0 0 10px 0;">
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serien laden</button>
+                    <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="saveSerie1Btn" onclick="saveSerieToFirestore(1)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 1 → T0</button>
+                    <button id="saveSerie2Btn" onclick="saveSerieToFirestore(2)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 2 → T0</button>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <select id="spieltagSelect" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
+                        <option value="">-- Spieltag --</option>
+                    </select>
+                    <button id="signInBtn" onclick="signInGoogle()" style="background:#424242;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Anmelden</button>
+                    <button id="signOutBtn" onclick="signOutGoogle()" style="display:none;background:#9e9e9e;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Abmelden</button>
+                    <button id="copyUidBtn" onclick="copyUid()" style="display:none;background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">UID kopieren</button>
+                    <span id="authStatus" style="font-size:12px;color:#888;">nicht angemeldet</span>
+                </div>
             </div>
             <div id="uploadSection" style="display:none;margin:0 0 10px 0;padding:6px;background:#f5f5f5;border-radius:4px;">
                 <label for="csvUpload" style="font-size:12px;color:#333;display:block;margin-bottom:3px;">CSV nachladen (Datum;Serie;Name;Punkte):</label>
@@ -559,16 +565,26 @@ function loadPlayers(text) {
         function checkRoundComplete() {
             const total = selectedPlayers.length;
             const done1 = selectedPlayers.filter(p => results[p].res1 !== '').length;
+            const check = ' <span style="color:#2e7d32;font-weight:bold;">&#10003;</span>';
+            // Überschrift: solange Serie 1 unvollständig ist, immer "S1:" anzeigen
+            const titleEl = document.getElementById('roundTitle');
+            if (titleEl) {
+                titleEl.textContent = (currentRound === 2 && done1 === total && total > 0)
+                    ? 'S2: Ergebnis eintragen'
+                    : 'S1: Ergebnis eintragen';
+            }
             if (currentRound === 1) {
                 const allHaveRes1 = done1 === total;
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
-                document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done1} von ${total} eingetragen` : '';
+                document.getElementById('progress').innerHTML = total > 0
+                    ? `Serie 1: ${done1} von ${total} eingetragen${allHaveRes1 ? check : ''}`
+                    : '';
             } else if (currentRound === 2) {
                 const done2 = selectedPlayers.filter(p => results[p].res2 !== '').length;
                 const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
                 document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
-                document.getElementById('progress').textContent = total > 0
-                    ? `Serie 1: ${done1} von ${total} eingetragen\nSerie 2: ${done2} von ${total} eingetragen`
+                document.getElementById('progress').innerHTML = total > 0
+                    ? `Serie 1: ${done1} von ${total} eingetragen${done1 === total ? check : ''}\nSerie 2: ${done2} von ${total} eingetragen${done2 === total ? check : ''}`
                     : '';
             }
         }
