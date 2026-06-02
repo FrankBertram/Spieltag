@@ -35,7 +35,7 @@
         .container { display: flex; gap: 10px; flex-wrap: wrap; }
         .left, .middle, .right { background: white; padding: 10px 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .left { flex: 0 0 180px; }
-        .middle { flex: 0 0 180px; }
+        .middle { flex: 0 0 200px; }
         .right { flex: 1; min-width: 400px; }
         input[type="number"], input[type="text"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
         button { background: #4CAF50; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 16px; }
@@ -79,15 +79,16 @@
         #addPlayerSection { display: none; width: 160px; margin-top: 10px; }
         #exportSection { display: none; margin-top: 20px; }
 		#currentResult {
-			width: 160px;      /* Schmal statt 100% */
-			display: inline-block;
-			margin-right: 10px;
+			width: 100%;       /* füllt Inhaltsbereich von .middle, identisch zu Info-Box und Button */
+			box-sizing: border-box;
+			display: block;
 		}
-		
+
 		#playerSelect {
-			width: 180px;      /* Dropdown passend */
-			display: inline-block;
-		}        
+			width: 100%;       /* füllt Inhaltsbereich von .middle, identisch zu Info-Box und Button */
+			box-sizing: border-box;
+			display: block;
+		}
 		#fileInput {  /* File-Input-Container */
 			margin-bottom: 5px;  /* Mehr Abstand unterhalb */
 			padding: 0px;
@@ -147,7 +148,7 @@
         </div>
         
         <div class="middle">
-            <h3 id="roundTitle">Serie 1: Ergebnis eintragen</h3>
+            <h3 id="roundTitle">S1: Ergebnis eintragen</h3>
             <div id="importSection" style="display:none;align-items:center;gap:6px;margin:0 0 10px 0;flex-wrap:wrap;">
                 <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Aus Firestore laden</button>
                 <button id="saveSerie1Btn" onclick="saveSerieToFirestore(1)" style="background:#388e3c;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serie 1 → T0</button>
@@ -168,7 +169,7 @@
             <div class="round-info" id="roundInfo">
                 Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.
             </div>
-            <p id="progress" style="font-size:13px;color:#555;margin:5px 0;"></p>
+            <p id="progress" style="font-size:13px;color:#555;margin:5px 0;white-space:pre-line;"></p>
             
             <select id="playerSelect">
                 <option value="">-- Spieler wählen --</option>
@@ -557,19 +558,18 @@ function loadPlayers(text) {
 
         function checkRoundComplete() {
             const total = selectedPlayers.length;
+            const done1 = selectedPlayers.filter(p => results[p].res1 !== '').length;
             if (currentRound === 1) {
-                const done = selectedPlayers.filter(p => results[p].res1 !== '').length;
-                const allHaveRes1 = done === total;
+                const allHaveRes1 = done1 === total;
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
-                document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done} von ${total} eingetragen` : '';
+                document.getElementById('progress').textContent = total > 0 ? `Serie 1: ${done1} von ${total} eingetragen` : '';
             } else if (currentRound === 2) {
                 const done2 = selectedPlayers.filter(p => results[p].res2 !== '').length;
-                const missing1 = selectedPlayers.filter(p => results[p].res1 === '').length;
                 const allComplete = selectedPlayers.every(p => results[p].res1 !== '' && results[p].res2 !== '');
                 document.getElementById('exportSection').style.display = allComplete ? 'block' : 'none';
-                let txt = total > 0 ? `Serie 2: ${done2} von ${total} eingetragen` : '';
-                if (missing1 > 0) txt += ` · Serie 1 fehlt: ${missing1}`;
-                document.getElementById('progress').textContent = txt;
+                document.getElementById('progress').textContent = total > 0
+                    ? `Serie 1: ${done1} von ${total} eingetragen\nSerie 2: ${done2} von ${total} eingetragen`
+                    : '';
             }
         }
 
@@ -635,7 +635,7 @@ function loadPlayers(text) {
             editingPlayer = null;
             editingSeries = null;
 	    const count = selectedPlayers.length;
-            document.getElementById('roundTitle').textContent = 'Serie 2: Ergebnis eintragen';
+            document.getElementById('roundTitle').textContent = 'S2: Ergebnis eintragen';
             document.getElementById('roundInfo').textContent = 
                 'Jetzt das Ergebnis der zweiten Serie für jeden Spieler eintragen.';
             document.getElementById('currentResult').placeholder = 'Ergebnis Serie 2 eintragen';
@@ -826,7 +826,7 @@ function updateRanking() {
             editingSeries = null;
 	    const count = selectedPlayers.length;
 
-            document.getElementById('roundTitle').textContent = 'Serie 1: Ergebnis eintragen';
+            document.getElementById('roundTitle').textContent = 'S1: Ergebnis eintragen';
             document.getElementById('roundInfo').textContent = 
                 'Trage nacheinander das Ergebnis der ersten Serie für jeden Spieler ein.';
             document.getElementById('currentResult').placeholder = 'Ergebnis Serie 1 eintragen';
