@@ -151,6 +151,9 @@
             <h3 id="roundTitle">S1: Ergebnis eintragen</h3>
             <div id="importSection" style="display:none;flex-direction:column;gap:6px;margin:0 0 10px 0;">
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="gesamtlisteBtn" onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Gesamtliste</button>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                     <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serien laden</button>
                     <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
                 </div>
@@ -931,7 +934,21 @@ function updateRanking() {
         };
     </script>
     <div class="footer">
-    © 2026 by Frank Bertram (V1.8)
+    © 2026 by Frank Bertram (V1.9)
+    </div>
+
+    <div id="gesamtlisteModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;">
+            <div style="display:flex;align-items:center;gap:10px;justify-self:start;">
+                <img src="Skat.png" alt="Skat-Logo" style="height:40px;width:auto;">
+                <span style="font-weight:bold;font-size:1.2em;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="gesamtlisteHeading" style="margin:0;font-size:1.2em;text-align:center;">Jahreswertung</h2>
+            <div style="justify-self:end;">
+                <button onclick="closeGesamtliste()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="gesamtlisteContent" style="font-size:13px;">Lade …</div>
     </div>
 
     <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
@@ -948,7 +965,7 @@ function updateRanking() {
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
         const firebaseConfig = {
@@ -994,6 +1011,243 @@ function updateRanking() {
                 console.error('Login-Fehler:', err);
                 alert('Login fehlgeschlagen: ' + (err && err.message ? err.message : err));
             });
+        };
+
+        window.closeGesamtliste = function() {
+            document.getElementById('gesamtlisteModal').style.display = 'none';
+        };
+
+        function fitGesamtlisteToViewport() {
+            const scroller = document.getElementById('gesamtlisteScroller');
+            if (!scroller) return;
+            const table = scroller.querySelector('table');
+            if (!table) return;
+            scroller.style.zoom = '1';
+            const natural = table.scrollWidth;
+            const available = window.innerWidth - 40; // 20px Padding links+rechts
+            if (natural > available) {
+                scroller.style.zoom = String(available / natural);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('gesamtlisteModal');
+            if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+                fitGesamtlisteToViewport();
+            }
+        });
+
+        window.showGesamtliste = async function() {
+            const modal = document.getElementById('gesamtlisteModal');
+            const content = document.getElementById('gesamtlisteContent');
+            modal.style.display = 'block';
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                // 24 Spieltag-Termine (alle 2 Wochen ab 13.01.2026)
+                const dates = [];
+                const start = new Date(Date.UTC(2026, 0, 13));
+                for (let i = 0; i < 24; i++) {
+                    const d = new Date(start);
+                    d.setUTCDate(d.getUTCDate() + i * 14);
+                    const iso = d.toISOString().slice(0, 10);
+                    const dd = String(d.getUTCDate()).padStart(2, '0');
+                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    dates.push({ iso, label: `${dd}.${mm}` });
+                }
+
+                // Mitspieler-Liste aus Firestore: Dokument 'mitspieler/Liste', Feld 'Mitspieler' (Array)
+                // Alt: Array von Strings. Neu: Array von Objekten { name, eintritt, mitglied }.
+                const listeSnap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const mitspieler = new Set();
+                const mitspielerInfo = {}; // name -> { eintritt, mitglied }
+                if (listeSnap.exists()) {
+                    const arr = listeSnap.data().Mitspieler || [];
+                    arr.forEach(entry => {
+                        if (!entry || typeof entry !== 'object') return;
+                        if (entry.mitglied !== true) return;
+                        const name = (entry.name || '').trim();
+                        if (!name) return;
+                        mitspieler.add(name);
+                        mitspielerInfo[name] = {
+                            eintritt: entry.eintritt || '',
+                            mitglied: true
+                        };
+                    });
+                }
+                if (mitspieler.size === 0) {
+                    content.innerHTML = '<p>Keine Mitspieler in „mitspieler/Liste.Mitspieler" gefunden.</p>';
+                    return;
+                }
+
+                function formatEintritt(v) {
+                    if (!v) return '';
+                    // Firestore-Timestamp
+                    if (v && typeof v.toDate === 'function') v = v.toDate();
+                    if (v instanceof Date) {
+                        const dd = String(v.getDate()).padStart(2, '0');
+                        const mm = String(v.getMonth() + 1).padStart(2, '0');
+                        return `${dd}.${mm}.${v.getFullYear()}`;
+                    }
+                    const s = String(v).trim();
+                    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (iso) return `${iso[3]}.${iso[2]}.${iso[1]}`;
+                    return s;
+                }
+
+                const snap = await getDocs(collection(db, 'spieltage'));
+                // playerData[name][datum][serie] = punkte – nur Mitspieler, Tisch-Duplikate überschreiben sich
+                const playerData = {};
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const datum = data.datum;
+                    const serie = String(data.serie);
+                    (data.spieler || []).forEach(s => {
+                        if (!s || !s.name) return;
+                        if (!mitspieler.has(s.name)) return;
+                        const val = parseFloat(s.gesamtpunkte);
+                        if (Number.isNaN(val)) return;
+                        if (!playerData[s.name]) playerData[s.name] = {};
+                        if (!playerData[s.name][datum]) playerData[s.name][datum] = {};
+                        playerData[s.name][datum][serie] = val;
+                    });
+                });
+
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const DEFAULT_PUNKTE = 750;
+                const playedSpieltage = dates.filter(d => d.iso <= todayIso).length;
+                const headingEl = document.getElementById('gesamtlisteHeading');
+                if (headingEl) {
+                    headingEl.textContent = playedSpieltage > 0
+                        ? `Jahreswertung zum ${playedSpieltage}. Spieltag`
+                        : 'Jahreswertung';
+                }
+                function eintrittToIso(v) {
+                    if (!v) return '';
+                    if (v && typeof v.toDate === 'function') v = v.toDate();
+                    if (v instanceof Date) {
+                        const yyyy = v.getFullYear();
+                        const mm = String(v.getMonth() + 1).padStart(2, '0');
+                        const dd = String(v.getDate()).padStart(2, '0');
+                        return `${yyyy}-${mm}-${dd}`;
+                    }
+                    const s = String(v).trim();
+                    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+                    const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+                    return '';
+                }
+                const KEEP_BEST = 18;
+                const players = [...mitspieler].map(name => {
+                    const byDate = {};
+                    const missing = new Set();
+                    const dropped = new Set();
+                    const perDate = playerData[name] || {};
+                    const eintrittIso = eintrittToIso((mitspielerInfo[name] || {}).eintritt);
+                    const pairs = [];
+                    dates.forEach(d => {
+                        const afterEintritt = !eintrittIso || d.iso >= eintrittIso;
+                        if (!afterEintritt) return;
+                        const day = perDate[d.iso];
+                        if (day) {
+                            const s1 = day['1'] || 0;
+                            const s2 = day['2'] || 0;
+                            const sum = s1 + s2;
+                            byDate[d.iso] = sum;
+                            pairs.push({ iso: d.iso, value: sum });
+                        } else if (d.iso <= todayIso) {
+                            byDate[d.iso] = DEFAULT_PUNKTE;
+                            missing.add(d.iso);
+                            pairs.push({ iso: d.iso, value: DEFAULT_PUNKTE });
+                        }
+                    });
+                    // Streichresultate: nur Werte >= 0 sind streichbar, gestrichen werden die niedrigsten.
+                    if (pairs.length > KEEP_BEST) {
+                        const droppable = pairs.filter(p => p.value >= 0)
+                            .slice().sort((a, b) => a.value - b.value);
+                        const dropCount = Math.min(pairs.length - KEEP_BEST, droppable.length);
+                        for (let i = 0; i < dropCount; i++) {
+                            dropped.add(droppable[i].iso);
+                        }
+                    }
+                    let total = 0;
+                    for (const p of pairs) {
+                        if (!dropped.has(p.iso)) total += p.value;
+                    }
+                    // Nächste 2 Streichkandidaten: alle 24 Datumsspalten betrachten,
+                    // fehlende Einträge ('-') als 0 zählen, Negative ausschließen,
+                    // bereits gestrichene überspringen, dann die nächsten 2 niedrigsten.
+                    const streichPool = dates
+                        .map(d => byDate[d.iso] != null ? byDate[d.iso] : 0)
+                        .filter(v => v >= 0)
+                        .sort((a, b) => a - b);
+                    const streich = streichPool.slice(dropped.size, dropped.size + 2);
+                    return { name, byDate, missing, dropped, total, streich };
+                });
+                players.sort((a, b) => b.total - a.total);
+
+                let currentRank = 1;
+                players.forEach((p, i) => {
+                    if (i === 0) currentRank = 1;
+                    else if (p.total !== players[i - 1].total) currentRank = i + 1;
+                    p.rank = currentRank;
+                });
+
+                if (players.length === 0) {
+                    content.innerHTML = '<p>Keine Daten in Firestore gefunden.</p>';
+                    return;
+                }
+
+                const cell = 'padding:4px 4px;border:1px solid #ddd;';
+                const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+                const stickyRank = 'position:sticky;left:0;background:white;z-index:1;';
+                const stickyName = 'position:sticky;left:30px;background:white;z-index:1;';
+                const stickyRankTh = 'position:sticky;left:0;z-index:2;';
+                const stickyNameTh = 'position:sticky;left:30px;z-index:2;';
+
+                let html = '<div id="gesamtlisteScroller" style="overflow:auto;max-height:calc(100vh - 100px);"><table style="border-collapse:collapse;font-size:12px;">';
+                html += '<thead><tr>';
+                html += `<th style="${th}${stickyRankTh}width:30px;text-align:right;">Rg</th>`;
+                html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
+                dates.forEach((d, i) => {
+                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:30px;min-width:30px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:9px;">${d.label}</span></th>`;
+                });
+                html += `<th style="${th}text-align:right;background:#e3f2fd;">Gesamt</th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;white-space:nowrap;">Streich</th>`;
+                html += '</tr></thead><tbody>';
+
+                players.forEach((p, idx) => {
+                    const rowBg = idx % 2 === 1 ? '#f5f5f5' : 'white';
+                    const stickyRankRow = `position:sticky;left:0;background:${rowBg};z-index:1;`;
+                    const stickyNameRow = `position:sticky;left:30px;background:${rowBg};z-index:1;`;
+                    html += `<tr style="background:${rowBg};">`;
+                    html += `<td style="${cell}${stickyRankRow}text-align:right;">${p.rank}</td>`;
+                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${p.name}</td>`;
+                    dates.forEach(d => {
+                        const v = p.byDate[d.iso];
+                        if (v != null) {
+                            const isMissing = p.missing.has(d.iso);
+                            const isDropped = p.dropped.has(d.iso);
+                            let style = '';
+                            if (isMissing) style += 'color:#d32f2f;';
+                            if (isDropped) style += 'text-decoration:line-through;opacity:0.45;';
+                            else style += 'font-weight:bold;';
+                            html += `<td style="${cell}text-align:right;${style}">${v}</td>`;
+                        } else {
+                            html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                        }
+                    });
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;">${p.total}</td>`;
+                    const streichStr = p.streich.length ? p.streich.join(', ') : '-';
+                    html += `<td style="${cell}text-align:right;background:#fff3e0;white-space:nowrap;color:#666;">${streichStr}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+                fitGesamtlisteToViewport();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
+            }
         };
 
         let importModeResolver = null;
