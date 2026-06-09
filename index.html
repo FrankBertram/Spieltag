@@ -173,6 +173,10 @@
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
                         Monat
                     </button>
+                    <button id="mitspielerVerwBtn" onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
+                        Mitspieler
+                    </button>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                     <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serien laden</button>
@@ -1006,6 +1010,21 @@ function updateRanking() {
         <div id="monatswertungContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
     </div>
 
+    <div id="mitspielerVerwModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Mitspieler-Verwaltung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:8px;">
+                <button onclick="saveMitspielerVerw()" style="background:#388e3c;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Speichern</button>
+                <button onclick="closeMitspielerVerw()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="mitspielerVerwContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
     <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
         <div style="background:white;padding:20px;border-radius:8px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
             <h3 style="margin:0 0 10px 0;">Spieltag laden</h3>
@@ -1784,6 +1803,231 @@ function updateRanking() {
         };
         window.exportMonatswertungPdf = function() {
             return exportPortraitPdf('monatswertungModal', 'monatswertungContent', 'monatswertungHeading', 'Monatswertung');
+        };
+
+        function eintrittToIsoGlobal(v) {
+            if (!v) return '';
+            if (v && typeof v.toDate === 'function') v = v.toDate();
+            if (v instanceof Date) {
+                const yyyy = v.getFullYear();
+                const mm = String(v.getMonth() + 1).padStart(2, '0');
+                const dd = String(v.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            const s = String(v).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+            const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+            return '';
+        }
+
+        function escapeHtmlAttr(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        let mitspielerVerwData = [];
+
+        window.closeMitspielerVerw = function() {
+            document.getElementById('mitspielerVerwModal').style.display = 'none';
+        };
+
+        window.showMitspielerVerwaltung = async function() {
+            const modal = document.getElementById('mitspielerVerwModal');
+            const content = document.getElementById('mitspielerVerwContent');
+            modal.style.display = 'block';
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const arr = snap.exists() ? (snap.data().Mitspieler || []) : [];
+                mitspielerVerwData = arr.map(e => {
+                    if (typeof e === 'string') {
+                        return { name: e.trim(), eintritt: '', mitglied: false, email: '' };
+                    }
+                    if (!e || typeof e !== 'object') return null;
+                    return {
+                        name: (e.name || '').trim(),
+                        eintritt: eintrittToIsoGlobal(e.eintritt),
+                        mitglied: e.mitglied === true,
+                        email: (e.email || '').trim()
+                    };
+                }).filter(e => e && e.name);
+                mitspielerVerwData.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+                renderMitspielerVerw();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${err.message || err}</p>`;
+            }
+        };
+
+        function renderMitspielerVerw() {
+            const content = document.getElementById('mitspielerVerwContent');
+            const cell = 'padding:6px 8px;border:1px solid #ddd;';
+            const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+            const inputStyle = 'width:100%;border:none;background:transparent;font-size:14px;font-family:Arial,sans-serif;padding:2px 4px;box-sizing:border-box;';
+            let html = '<div style="max-width:900px;margin:0 auto;">';
+            html += '<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:bold;padding:8px 10px;background:#e3f2fd;border-radius:4px;font-size:14px;">E-Mails einfügen &amp; zuordnen</summary>';
+            html += '<div style="padding:10px;background:#f8f8f8;border:1px solid #ddd;border-radius:4px;margin-top:4px;">';
+            html += '<p style="margin:0 0 6px;font-size:13px;color:#555;">Format: <code>Name &lt;email@adresse&gt;</code> oder nur E-Mail, getrennt durch Komma, Semikolon oder Zeilenumbruch. Nicht-zugeordnete Einträge werden im Anschluss angezeigt.</p>';
+            html += '<textarea id="emailImportText" rows="4" style="width:100%;font-family:monospace;font-size:12px;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;"></textarea>';
+            html += '<div style="margin-top:6px;text-align:right;"><button onclick="runEmailImport()" style="background:#1976d2;color:white;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;">Zuordnen</button></div>';
+            html += '<div id="emailImportResult" style="margin-top:8px;font-size:13px;"></div>';
+            html += '</div></details>';
+            html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;">';
+            html += '<thead><tr>';
+            html += `<th style="${th}text-align:left;width:220px;">Name</th>`;
+            html += `<th style="${th}text-align:left;width:150px;">Eintritt</th>`;
+            html += `<th style="${th}text-align:center;width:90px;">Mitglied</th>`;
+            html += `<th style="${th}text-align:left;">E-Mail</th>`;
+            html += `<th style="${th}text-align:center;width:60px;"></th>`;
+            html += '</tr></thead><tbody>';
+            mitspielerVerwData.forEach((e, i) => {
+                const rowBg = i % 2 === 1 ? '#f5f5f5' : 'white';
+                html += `<tr style="background:${rowBg};">`;
+                html += `<td style="${cell}"><input type="text" value="${escapeHtmlAttr(e.name)}" oninput="mitspielerVerwData[${i}].name=this.value" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}"><input type="date" value="${escapeHtmlAttr(e.eintritt)}" oninput="mitspielerVerwData[${i}].eintritt=this.value" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.mitglied ? 'checked' : ''} onchange="mitspielerVerwData[${i}].mitglied=this.checked" style="width:18px;height:18px;cursor:pointer;"></td>`;
+                html += `<td style="${cell}"><input type="email" id="mvEmail_${i}" value="${escapeHtmlAttr(e.email)}" oninput="mitspielerVerwData[${i}].email=this.value" style="${inputStyle}"></td>`;
+                html += `<td style="${cell}text-align:center;"><button onclick="removeMitspielerVerw(${i})" style="background:#e53935;color:white;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;line-height:1;">×</button></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            html += '<div style="text-align:center;margin-top:14px;"><button onclick="addMitspielerVerwRow()" style="background:#388e3c;color:white;border:none;border-radius:4px;padding:8px 18px;cursor:pointer;font-size:14px;font-family:Arial,sans-serif;">+ Neuer Mitspieler</button></div>';
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function normalizeForMatch(s) {
+            return String(s == null ? '' : s).toLowerCase()
+                .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+                .replace(/[^a-z0-9 ,.\-]/g, ' ');
+        }
+
+        function nameTokensFor(s) {
+            return normalizeForMatch(s).split(/[\s,.\-]+/).filter(t => t.length >= 2);
+        }
+
+        function parseEmailList(text) {
+            const parts = String(text || '').split(/[,;\n\r]+/).map(s => s.trim()).filter(Boolean);
+            const items = [];
+            for (const part of parts) {
+                const m = part.match(/^(.+?)\s*<\s*([^>\s]+@[^>\s]+)\s*>\s*$/);
+                if (m) {
+                    items.push({ rawName: m[1].trim(), email: m[2].trim() });
+                    continue;
+                }
+                const m2 = part.match(/([^\s<>;,]+@[^\s<>;,]+)/);
+                if (m2) {
+                    items.push({ rawName: '', email: m2[1].trim() });
+                }
+            }
+            return items;
+        }
+
+        function scoreEmailToPlayer(item, playerName) {
+            if (!playerName) return 0;
+            const pTok = nameTokensFor(playerName);
+            const localPart = normalizeForMatch((item.email.split('@')[0] || ''));
+            const localBits = localPart.split(/[\s.\-_0-9]+/).filter(t => t.length >= 2);
+            const nameTok = nameTokensFor(item.rawName);
+            let score = 0;
+            for (const t of nameTok) {
+                if (pTok.includes(t)) score += 20;
+                else if (pTok.some(p => p.length >= 3 && (p.startsWith(t) || t.startsWith(p)))) score += 8;
+            }
+            for (const p of pTok) {
+                if (p.length < 3) continue;
+                if (localBits.includes(p)) score += 12;
+                else if (localPart.includes(p)) score += 8;
+            }
+            return score;
+        }
+
+        window.runEmailImport = function() {
+            const text = (document.getElementById('emailImportText') || {}).value || '';
+            const resultEl = document.getElementById('emailImportResult');
+            const items = parseEmailList(text);
+            if (!items.length) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#d32f2f;">Keine E-Mail-Adressen erkannt.</span>';
+                return;
+            }
+            const claimed = new Set();
+            const assignments = [];
+            const unmatched = [];
+            for (const it of items) {
+                let bestIdx = -1, bestScore = 11;
+                mitspielerVerwData.forEach((p, i) => {
+                    if (claimed.has(i)) return;
+                    const s = scoreEmailToPlayer(it, p.name);
+                    if (s > bestScore) { bestScore = s; bestIdx = i; }
+                });
+                if (bestIdx >= 0) {
+                    claimed.add(bestIdx);
+                    mitspielerVerwData[bestIdx].email = it.email;
+                    const inp = document.getElementById(`mvEmail_${bestIdx}`);
+                    if (inp) {
+                        inp.value = it.email;
+                        inp.style.background = '#fff9c4';
+                    }
+                    assignments.push({ player: mitspielerVerwData[bestIdx].name, item: it, score: bestScore });
+                } else {
+                    unmatched.push(it);
+                }
+            }
+            const newResultEl = document.getElementById('emailImportResult');
+            if (newResultEl) {
+                let html = `<div style="padding:8px;background:#e8f5e9;border-radius:4px;border:1px solid #c8e6c9;"><b>${assignments.length} von ${items.length} zugeordnet.</b>`;
+                if (unmatched.length) {
+                    html += `<br><span style="color:#d32f2f;font-weight:bold;">${unmatched.length} nicht zugeordnet:</span><ul style="margin:4px 0 0 20px;padding:0;">`;
+                    unmatched.forEach(u => {
+                        const label = u.rawName ? `${u.rawName} &lt;${escapeHtmlAttr(u.email)}&gt;` : escapeHtmlAttr(u.email);
+                        html += `<li>${label}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                html += '<br><span style="font-size:12px;color:#666;">Bitte E-Mails in der Tabelle prüfen und anschließend <b>Speichern</b> klicken.</span></div>';
+                newResultEl.innerHTML = html;
+            }
+        };
+
+        window.addMitspielerVerwRow = function() {
+            mitspielerVerwData.push({ name: '', eintritt: '', mitglied: false, email: '' });
+            renderMitspielerVerw();
+        };
+
+        window.removeMitspielerVerw = function(idx) {
+            const e = mitspielerVerwData[idx];
+            const label = (e && e.name) ? `"${e.name}"` : 'diesen Eintrag';
+            if (!confirm(`Mitspieler ${label} entfernen?`)) return;
+            mitspielerVerwData.splice(idx, 1);
+            renderMitspielerVerw();
+        };
+
+        window.saveMitspielerVerw = async function() {
+            const clean = mitspielerVerwData
+                .map(e => ({
+                    name: (e.name || '').trim(),
+                    eintritt: (e.eintritt || '').trim(),
+                    mitglied: !!e.mitglied,
+                    email: (e.email || '').trim()
+                }))
+                .filter(e => e.name);
+            const names = clean.map(e => e.name.toLowerCase());
+            const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+            if (dupes.length) {
+                alert('Doppelte Namen: ' + [...new Set(dupes)].join(', '));
+                return;
+            }
+            try {
+                await setDoc(doc(db, 'mitspieler', 'Liste'), { Mitspieler: clean });
+                alert(`${clean.length} Mitspieler gespeichert.`);
+            } catch (err) {
+                console.error(err);
+                alert('Fehler beim Speichern: ' + (err.message || err));
+            }
         };
 
         let importModeResolver = null;
