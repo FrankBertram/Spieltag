@@ -133,10 +133,27 @@
     <div class="header">
         <img data-skat-logo alt="Skat-Logo">
         <h3>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h3>
-        <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:8px;">
-            <label for="fileInput" style="margin:0;white-space:nowrap;font-size:12px;font-family:Arial,sans-serif;position:relative;top:-2px;">Mitspieler:</label>
-            <input type="file" id="fileInput" accept=".txt" style="font-size:12px;font-family:Arial,sans-serif;">
-            <button onclick="neustart()" style="background:#e53935;color:white;padding:2px 8px;border:none;border-radius:3px;cursor:pointer;font-size:12px;font-family:Arial,sans-serif;white-space:nowrap;line-height:1.4;position:relative;top:-8px;">Neustart</button>
+        <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <button onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg>
+                Gesamt
+            </button>
+            <button onclick="showTageswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/><rect x="5.5" y="8" width="3" height="2.5" fill="white" stroke="none"/></svg>
+                Spieltag
+            </button>
+            <button onclick="showMonatswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
+                Monat
+            </button>
+            <button onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
+                Mitspieler
+            </button>
+            <button onclick="sendSpieltagEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
+                E-Mail
+            </button>
         </div>
     </div>
     
@@ -160,24 +177,6 @@
         <div class="middle">
             <h3 id="roundTitle">S1: Ergebnis eintragen</h3>
             <div id="importSection" style="display:none;flex-direction:column;gap:6px;margin:0 0 10px 0;">
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                    <button id="gesamtlisteBtn" onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg>
-                        Gesamt
-                    </button>
-                    <button id="tageswertungBtn" onclick="showTageswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/><rect x="5.5" y="8" width="3" height="2.5" fill="white" stroke="none"/></svg>
-                        Tag
-                    </button>
-                    <button id="monatswertungBtn" onclick="showMonatswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
-                        Monat
-                    </button>
-                    <button id="mitspielerVerwBtn" onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
-                        Mitspieler
-                    </button>
-                </div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                     <button id="importBtn" onclick="importFromFirestore()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:auto;margin:0;">Serien laden</button>
                     <input type="date" id="importDate" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">
@@ -225,7 +224,10 @@
         </div>
         
         <div class="right">
-            <h3 id="rankingTitle">Zwischenstand nach Serie 1</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <h3 id="rankingTitle" style="margin:0;">Zwischenstand nach Serie 1</h3>
+                <button onclick="neustart()" style="background:#e53935;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Neustart</button>
+            </div>
             <table id="rankingTable">
                 <thead>
                     <tr>
@@ -378,14 +380,17 @@
         }
 
 
-        document.getElementById('fileInput').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => loadPlayers(ev.target.result);
-                reader.readAsText(file);
-            }
-        });
+        const fileInputEl = document.getElementById('fileInput');
+        if (fileInputEl) {
+            fileInputEl.addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = ev => loadPlayers(ev.target.result);
+                    reader.readAsText(file);
+                }
+            });
+        }
 
 
 
@@ -1087,8 +1092,22 @@ function updateRanking() {
             });
         };
 
+        function openOverlay(id) {
+            document.getElementById(id).style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        function closeOverlay(id) {
+            document.getElementById(id).style.display = 'none';
+            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal']
+                .some(m => {
+                    const el = document.getElementById(m);
+                    return el && el.style.display && el.style.display !== 'none';
+                });
+            if (!anyOpen) document.body.style.overflow = '';
+        }
+
         window.closeGesamtliste = function() {
-            document.getElementById('gesamtlisteModal').style.display = 'none';
+            closeOverlay('gesamtlisteModal');
         };
 
         window.exportGesamtlistePdf = async function() {
@@ -1159,8 +1178,10 @@ function updateRanking() {
                 const x = (pageW - drawW) / 2;
                 const y = margin + titleH + 2;
                 pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
-                const today = new Date().toISOString().slice(0, 10);
-                pdf.save(`Jahreswertung_${today}.pdf`);
+                const meta = window.__gesamtMeta || {};
+                const year = meta.seasonYear || new Date().getFullYear();
+                const stNr = String(meta.playedSpieltage || 0).padStart(2, '0');
+                pdf.save(`Jahreswertung_${year}-${stNr}.pdf`);
             } catch (err) {
                 console.error(err);
                 alert('PDF-Export fehlgeschlagen: ' + err.message);
@@ -1193,9 +1214,8 @@ function updateRanking() {
         });
 
         window.showGesamtliste = async function() {
-            const modal = document.getElementById('gesamtlisteModal');
             const content = document.getElementById('gesamtlisteContent');
-            modal.style.display = 'block';
+            openOverlay('gesamtlisteModal');
             content.innerHTML = 'Lade Daten aus Firestore …';
             try {
                 // 24 Spieltag-Termine (alle 2 Wochen ab 13.01.2026)
@@ -1284,6 +1304,7 @@ function updateRanking() {
                 const titelText = playedSpieltage > 0
                     ? `Jahreswertung ${seasonYear} zum ${playedSpieltage}. Spieltag`
                     : `Jahreswertung ${seasonYear}`;
+                window.__gesamtMeta = { playedSpieltage, seasonYear };
                 const standEl = document.getElementById('gesamtlisteStand');
                 if (standEl) standEl.textContent = standText;
                 const headingEl = document.getElementById('gesamtlisteHeading');
@@ -1520,20 +1541,19 @@ function updateRanking() {
         }
 
         window.closeTageswertung = function() {
-            document.getElementById('tageswertungModal').style.display = 'none';
+            closeOverlay('tageswertungModal');
         };
         window.closeMonatswertung = function() {
-            document.getElementById('monatswertungModal').style.display = 'none';
+            closeOverlay('monatswertungModal');
         };
 
         let tagesData = null;
         let monatsData = null;
 
         window.showTageswertung = async function() {
-            const modal = document.getElementById('tageswertungModal');
             const content = document.getElementById('tageswertungContent');
             const select = document.getElementById('tageswertungSelect');
-            modal.style.display = 'block';
+            openOverlay('tageswertungModal');
             content.innerHTML = 'Lade Daten aus Firestore …';
             try {
                 const dates = getSpieltagDates();
@@ -1624,10 +1644,9 @@ function updateRanking() {
         }
 
         window.showMonatswertung = async function() {
-            const modal = document.getElementById('monatswertungModal');
             const content = document.getElementById('monatswertungContent');
             const select = document.getElementById('monatswertungSelect');
-            modal.style.display = 'block';
+            openOverlay('monatswertungModal');
             content.innerHTML = 'Lade Daten aus Firestore …';
             try {
                 const dates = getSpieltagDates();
@@ -1728,7 +1747,7 @@ function updateRanking() {
             content.innerHTML = html;
         }
 
-        async function exportPortraitPdf(modalId, contentId, headingId, filenamePrefix) {
+        async function exportPortraitPdf(modalId, contentId, headingId, filename) {
             const modal = document.getElementById(modalId);
             const content = document.getElementById(contentId);
             if (!modal || !content) return;
@@ -1790,8 +1809,7 @@ function updateRanking() {
                 const x = marginLeft;
                 const y = marginTop + titleH + 2;
                 pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
-                const today = new Date().toISOString().slice(0, 10);
-                pdf.save(`${filenamePrefix}_${today}.pdf`);
+                pdf.save(filename);
             } catch (err) {
                 console.error(err);
                 alert('PDF-Export fehlgeschlagen: ' + err.message);
@@ -1799,10 +1817,22 @@ function updateRanking() {
         }
 
         window.exportTageswertungPdf = function() {
-            return exportPortraitPdf('tageswertungModal', 'tageswertungContent', 'tageswertungHeading', 'Tageswertung');
+            if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
+            const sel = document.getElementById('tageswertungSelect');
+            const idx = Number(sel.value);
+            const d = tagesData.dates[idx];
+            const stNr = String(idx + 1).padStart(2, '0');
+            const filename = `Tagessieger ${stNr}. Spieltag - ${d.dd}.${d.mm}.${d.yyyy}.pdf`;
+            return exportPortraitPdf('tageswertungModal', 'tageswertungContent', 'tageswertungHeading', filename);
         };
         window.exportMonatswertungPdf = function() {
-            return exportPortraitPdf('monatswertungModal', 'monatswertungContent', 'monatswertungHeading', 'Monatswertung');
+            if (!monatsData) { alert('Daten noch nicht geladen.'); return; }
+            const sel = document.getElementById('monatswertungSelect');
+            const idx = Number(sel.value);
+            const ref = monatsData.dates[idx];
+            const monatName = MONAT_NAMEN[parseInt(ref.mm, 10) - 1] || ref.mm;
+            const filename = `Monatssieger ${monatName}.pdf`;
+            return exportPortraitPdf('monatswertungModal', 'monatswertungContent', 'monatswertungHeading', filename);
         };
 
         function eintrittToIsoGlobal(v) {
@@ -1832,13 +1862,12 @@ function updateRanking() {
         let mitspielerVerwData = [];
 
         window.closeMitspielerVerw = function() {
-            document.getElementById('mitspielerVerwModal').style.display = 'none';
+            closeOverlay('mitspielerVerwModal');
         };
 
         window.showMitspielerVerwaltung = async function() {
-            const modal = document.getElementById('mitspielerVerwModal');
             const content = document.getElementById('mitspielerVerwContent');
-            modal.style.display = 'block';
+            openOverlay('mitspielerVerwModal');
             content.innerHTML = 'Lade Daten aus Firestore …';
             try {
                 const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
@@ -1868,7 +1897,7 @@ function updateRanking() {
             const cell = 'padding:6px 8px;border:1px solid #ddd;';
             const th = 'background:#f2f2f2;font-weight:bold;' + cell;
             const inputStyle = 'width:100%;border:none;background:transparent;font-size:14px;font-family:Arial,sans-serif;padding:2px 4px;box-sizing:border-box;';
-            let html = '<div style="max-width:900px;margin:0 auto;">';
+            let html = '<div style="max-width:1200px;margin:0 auto;">';
             html += '<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-weight:bold;padding:8px 10px;background:#e3f2fd;border-radius:4px;font-size:14px;">E-Mails einfügen &amp; zuordnen</summary>';
             html += '<div style="padding:10px;background:#f8f8f8;border:1px solid #ddd;border-radius:4px;margin-top:4px;">';
             html += '<p style="margin:0 0 6px;font-size:13px;color:#555;">Format: <code>Name &lt;email@adresse&gt;</code> oder nur E-Mail, getrennt durch Komma, Semikolon oder Zeilenumbruch. Nicht-zugeordnete Einträge werden im Anschluss angezeigt.</p>';
@@ -1879,9 +1908,9 @@ function updateRanking() {
             html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;">';
             html += '<thead><tr>';
             html += `<th style="${th}text-align:left;width:220px;">Name</th>`;
-            html += `<th style="${th}text-align:left;width:150px;">Eintritt</th>`;
-            html += `<th style="${th}text-align:center;width:90px;">Mitglied</th>`;
-            html += `<th style="${th}text-align:left;">E-Mail</th>`;
+            html += `<th style="${th}text-align:left;width:140px;">Eintritt</th>`;
+            html += `<th style="${th}text-align:center;width:80px;">Mitglied</th>`;
+            html += `<th style="${th}text-align:left;width:480px;">E-Mail</th>`;
             html += `<th style="${th}text-align:center;width:60px;"></th>`;
             html += '</tr></thead><tbody>';
             mitspielerVerwData.forEach((e, i) => {
@@ -2004,6 +2033,118 @@ function updateRanking() {
             if (!confirm(`Mitspieler ${label} entfernen?`)) return;
             mitspielerVerwData.splice(idx, 1);
             renderMitspielerVerw();
+        };
+
+        function showEmailProgress(text) {
+            let el = document.getElementById('emailProgressOverlay');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'emailProgressOverlay';
+                el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1976d2;color:white;padding:12px 24px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);';
+                document.body.appendChild(el);
+            }
+            el.textContent = text;
+        }
+        function hideEmailProgress() {
+            const el = document.getElementById('emailProgressOverlay');
+            if (el) el.remove();
+        }
+
+        window.sendSpieltagEmail = async function() {
+            const spieltagSelect = document.getElementById('spieltagSelect');
+            const spieltagIso = spieltagSelect ? spieltagSelect.value : '';
+            if (!spieltagIso) {
+                alert('Bitte zuerst einen Spieltag im Dropdown auswählen.');
+                return;
+            }
+
+            let recipients = [];
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                if (snap.exists()) {
+                    const arr = snap.data().Mitspieler || [];
+                    arr.forEach(e => {
+                        if (!e || typeof e !== 'object') return;
+                        if (e.mitglied !== true) return;
+                        const email = (e.email || '').trim();
+                        if (email && /@/.test(email)) recipients.push(email);
+                    });
+                }
+            } catch (err) {
+                alert('Fehler beim Laden der Mitglieder: ' + (err.message || err));
+                return;
+            }
+
+            if (!recipients.length) {
+                if (!confirm('Keine Mitglieder mit hinterlegter E-Mail-Adresse gefunden. Trotzdem fortfahren und nur die PDFs erzeugen?')) return;
+            }
+
+            const [yyyy, mm, dd] = spieltagIso.split('-');
+            const spieltagDe = `${dd}.${mm}.${yyyy}`;
+            const allDates = getSpieltagDates();
+            const spieltagIdx = allDates.findIndex(d => d.iso === spieltagIso);
+            const spieltagNr = spieltagIdx >= 0 ? (spieltagIdx + 1) : null;
+
+            try {
+                showEmailProgress('Erstelle Jahreswertung (1/3) …');
+                await window.showGesamtliste();
+                await window.exportGesamtlistePdf();
+                window.closeGesamtliste();
+
+                showEmailProgress('Erstelle Spieltagwertung (2/3) …');
+                await window.showTageswertung();
+                await window.exportTageswertungPdf();
+                window.closeTageswertung();
+
+                showEmailProgress('Erstelle Monatswertung (3/3) …');
+                await window.showMonatswertung();
+                await window.exportMonatswertungPdf();
+                window.closeMonatswertung();
+            } catch (err) {
+                hideEmailProgress();
+                alert('Fehler beim PDF-Erstellen: ' + (err.message || err));
+                return;
+            }
+            hideEmailProgress();
+
+            const subject = spieltagNr
+                ? `Ergebnisse ${spieltagNr}. Spieltag - ${spieltagDe} - 1. Sintherner Skatclub`
+                : `Ergebnisse Spieltag ${spieltagDe} - 1. Sintherner Skatclub`;
+            const spieltagBezeichnung = spieltagNr ? `${spieltagNr}. Spieltag` : `Spieltag ${spieltagDe}`;
+            const stNrPad = spieltagNr ? String(spieltagNr).padStart(2, '0') : '00';
+            const monatName = (allDates[spieltagIdx] && MONAT_NAMEN[parseInt(allDates[spieltagIdx].mm, 10) - 1]) || '';
+            const body = [
+                'Liebe Skatfreunde,',
+                '',
+                `anbei die Ergebnisse vom ${spieltagBezeichnung} und der aktuelle Stand der Jahreswertung.`,
+                '',
+                'VG',
+                'Frank',
+                '',
+                'Anhänge:',
+                `  • Jahreswertung_${yyyy}-${stNrPad}.pdf`,
+                `  • Tagessieger ${stNrPad}. Spieltag - ${spieltagDe}.pdf`,
+                `  • Monatssieger ${monatName}.pdf`
+            ].join('\n');
+
+            const params = [];
+            if (recipients.length) params.push('bcc=' + encodeURIComponent(recipients.join(',')));
+            params.push('subject=' + encodeURIComponent(subject));
+            params.push('body=' + encodeURIComponent(body));
+            const mailto = 'mailto:?' + params.join('&');
+
+            if (mailto.length > 4000 && recipients.length) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    try {
+                        await navigator.clipboard.writeText(recipients.join(', '));
+                        alert(`E-Mail-Liste ist zu lang für mailto: ${recipients.length} Adressen wurden in die Zwischenablage kopiert. Mail-Client öffnet sich ohne BCC — bitte einfügen.`);
+                    } catch {}
+                }
+                const fallback = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+                window.location.href = fallback;
+            } else {
+                window.location.href = mailto;
+            }
         };
 
         window.saveMitspielerVerw = async function() {
