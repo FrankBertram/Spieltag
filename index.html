@@ -2064,14 +2064,35 @@ function updateRanking() {
 
             let recipients = [];
             try {
+                const teilnehmer = new Set();
+                try {
+                    const ergSnap = await getDocs(collection(db, 'spieltage'));
+                    ergSnap.forEach(ds => {
+                        const data = ds.data();
+                        if (data.datum !== spieltagIso) return;
+                        (data.spieler || []).forEach(s => {
+                            if (s && s.name) teilnehmer.add(s.name);
+                        });
+                    });
+                } catch (e) {
+                    console.warn('spieltage konnten nicht geladen werden:', e);
+                }
+
+                const seen = new Set();
                 const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
                 if (snap.exists()) {
                     const arr = snap.data().Mitspieler || [];
                     arr.forEach(e => {
                         if (!e || typeof e !== 'object') return;
-                        if (e.mitglied !== true) return;
                         const email = (e.email || '').trim();
-                        if (email && /@/.test(email)) recipients.push(email);
+                        if (!email || !/@/.test(email)) return;
+                        const isMember = e.mitglied === true;
+                        const isTeilnehmer = teilnehmer.has((e.name || '').trim());
+                        if (!isMember && !isTeilnehmer) return;
+                        const key = email.toLowerCase();
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        recipients.push(email);
                     });
                 }
             } catch (err) {
@@ -2132,7 +2153,7 @@ function updateRanking() {
             ].join('\n');
 
             const params = [];
-            if (recipients.length) params.push('bcc=' + encodeURIComponent(recipients.join(',')));
+            if (recipients.length) params.push('bcc=' + encodeURIComponent(recipients.join(';')));
             params.push('subject=' + encodeURIComponent(subject));
             params.push('body=' + encodeURIComponent(body));
             const mailto = 'mailto:?' + params.join('&');
@@ -2140,7 +2161,7 @@ function updateRanking() {
             if (mailto.length > 4000 && recipients.length) {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     try {
-                        await navigator.clipboard.writeText(recipients.join(', '));
+                        await navigator.clipboard.writeText(recipients.join('; '));
                         alert(`E-Mail-Liste ist zu lang für mailto: ${recipients.length} Adressen wurden in die Zwischenablage kopiert. Mail-Client öffnet sich ohne BCC — bitte einfügen.`);
                     } catch {}
                 }
