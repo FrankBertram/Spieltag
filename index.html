@@ -318,6 +318,8 @@
                 });
                 spieltagSelect.addEventListener('change', function() {
                     if (this.value && dateInput) dateInput.value = this.value;
+                    // Beim Sonderspieltag nur Preisskat-Teilnehmer in der Auswahlliste zeigen
+                    if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
                 });
             }
         })();
@@ -435,6 +437,8 @@ function loadPlayers(text) {
     
     // 3. Auswahl und Anzeige aktualisieren
     updateSelectedPlayers(); // setzt selectedPlayers neu und baut Dropdown + Tabelle
+    // Falls der Sonderspieltag aktiv ist: Nicht-Preisskat-Spieler ausblenden
+    if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
     saveState();
 }
 
@@ -470,7 +474,10 @@ function loadPlayers(text) {
         function alleWaehlen(checked) {
             allPlayers.forEach(p => {
                 const cb = document.getElementById('cb_' + p);
-                if (cb) cb.checked = checked && !guests.has(p);
+                if (!cb) return;
+                const item = cb.closest('.checkbox-item');
+                const hidden = item && item.style.display === 'none';
+                cb.checked = checked && !guests.has(p) && !hidden;
             });
             updateSelectedPlayers();
         }
@@ -1893,6 +1900,74 @@ function updateRanking() {
 
         let mitspielerVerwData = [];
 
+        // Preisskat-Teilnehmer: tolerant lesen (true, 'J'/'j'/'ja', 'y', 1).
+        function isPreisskatTrue(v) {
+            if (v === true || v === 1) return true;
+            const s = String(v == null ? '' : v).trim().toLowerCase();
+            return s === 'j' || s === 'ja' || s === 'true' || s === 'y' || s === '1' || s === 'x';
+        }
+        // Namens-Schlüssel für den Abgleich Firestore <-> Haupt-Spielerliste.
+        function preisskatNameKey(name) {
+            return String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+        // Set der Namen (normalisiert), die für Preisskat angekreuzt sind. Wird lazy aus Firestore geladen.
+        window.__preisskatNames = new Set();
+        window.__preisskatLoaded = false;
+        let __preisskatLoading = false;
+        async function loadPreisskatNames() {
+            if (__preisskatLoading) return;
+            __preisskatLoading = true;
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const set = new Set();
+                if (snap.exists()) {
+                    (snap.data().Mitspieler || []).forEach(e => {
+                        if (!e || typeof e !== 'object') return;
+                        if (isPreisskatTrue(e.preisskat)) set.add(preisskatNameKey(e.name));
+                    });
+                }
+                window.__preisskatNames = set;
+                window.__preisskatLoaded = true;
+                window.applyPreisskatFilter();
+            } catch (err) {
+                // fail-open: Laden nur erneut versuchen, nicht ausblenden
+                console.warn('Preisskat-Namen konnten nicht geladen werden:', err);
+            } finally {
+                __preisskatLoading = false;
+            }
+        }
+        // Blendet in der Haupt-Auswahlliste beim Sonderspieltag alle Nicht-Preisskat-Spieler aus.
+        window.applyPreisskatFilter = function() {
+            const sel = document.getElementById('spieltagSelect');
+            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value));
+            // Daten noch nicht sicher geladen? Nachladen anstoßen und bis dahin alle zeigen.
+            if (isExtra && !window.__preisskatLoaded) {
+                loadPreisskatNames();
+                isExtra = false;
+            }
+            const container = document.getElementById('playerCheckboxes');
+            if (!container) return;
+            const preis = window.__preisskatNames || new Set();
+            let changed = false;
+            container.querySelectorAll('.checkbox-item').forEach(item => {
+                const cb = item.querySelector('input[type=checkbox]');
+                if (!cb) return;
+                const name = (cb.id || '').replace(/^cb_/, '');
+                const allowed = !isExtra || preis.has(preisskatNameKey(name));
+                if (!allowed) {
+                    item.style.display = 'none';
+                    if (cb.checked) { cb.checked = false; changed = true; }
+                } else {
+                    item.style.display = '';
+                }
+            });
+            if (changed && typeof window.updateSelectedPlayers === 'function') {
+                window.updateSelectedPlayers();
+            }
+        };
+        // Preisskat-Namen beim Start vorladen, damit die Filterung beim Wechsel sofort greift.
+        loadPreisskatNames();
+
         window.mvSet = function(i, field, value) {
             if (mitspielerVerwData[i]) mitspielerVerwData[i][field] = value;
         };
@@ -1910,13 +1985,14 @@ function updateRanking() {
                 const arr = snap.exists() ? (snap.data().Mitspieler || []) : [];
                 mitspielerVerwData = arr.map(e => {
                     if (typeof e === 'string') {
-                        return { name: e.trim(), eintritt: '', mitglied: false, email: '' };
+                        return { name: e.trim(), eintritt: '', mitglied: false, preisskat: false, email: '' };
                     }
                     if (!e || typeof e !== 'object') return null;
                     return {
                         name: (e.name || '').trim(),
                         eintritt: eintrittToIsoGlobal(e.eintritt),
                         mitglied: e.mitglied === true,
+                        preisskat: isPreisskatTrue(e.preisskat),
                         email: (e.email || '').trim()
                     };
                 }).filter(e => e && e.name);
@@ -1946,7 +2022,8 @@ function updateRanking() {
             html += `<th style="${th}text-align:left;width:220px;">Name</th>`;
             html += `<th style="${th}text-align:left;width:140px;">Eintritt</th>`;
             html += `<th style="${th}text-align:center;width:80px;">Mitglied</th>`;
-            html += `<th style="${th}text-align:left;width:480px;">E-Mail</th>`;
+            html += `<th style="${th}text-align:center;width:90px;">Preisskat</th>`;
+            html += `<th style="${th}text-align:left;width:420px;">E-Mail</th>`;
             html += `<th style="${th}text-align:center;width:60px;"></th>`;
             html += '</tr></thead><tbody>';
             mitspielerVerwData.forEach((e, i) => {
@@ -1955,6 +2032,7 @@ function updateRanking() {
                 html += `<td style="${cell}"><input type="text" value="${escapeHtmlAttr(e.name)}" oninput="mvSet(${i},'name',this.value)" style="${inputStyle}"></td>`;
                 html += `<td style="${cell}"><input type="date" value="${escapeHtmlAttr(e.eintritt)}" oninput="mvSet(${i},'eintritt',this.value)" style="${inputStyle}"></td>`;
                 html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.mitglied ? 'checked' : ''} onchange="mvSet(${i},'mitglied',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
+                html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.preisskat ? 'checked' : ''} onchange="mvSet(${i},'preisskat',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
                 html += `<td style="${cell}"><input type="email" id="mvEmail_${i}" value="${escapeHtmlAttr(e.email)}" oninput="mvSet(${i},'email',this.value)" style="${inputStyle}"></td>`;
                 html += `<td style="${cell}text-align:center;"><button onclick="removeMitspielerVerw(${i})" style="background:#e53935;color:white;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;line-height:1;">×</button></td>`;
                 html += '</tr>';
@@ -2059,7 +2137,7 @@ function updateRanking() {
         };
 
         window.addMitspielerVerwRow = function() {
-            mitspielerVerwData.push({ name: '', eintritt: '', mitglied: false, email: '' });
+            mitspielerVerwData.push({ name: '', eintritt: '', mitglied: false, preisskat: false, email: '' });
             renderMitspielerVerw();
         };
 
@@ -2216,6 +2294,7 @@ function updateRanking() {
                     name: (e.name || '').trim(),
                     eintritt: (e.eintritt || '').trim(),
                     mitglied: !!e.mitglied,
+                    preisskat: !!e.preisskat,
                     email: (e.email || '').trim()
                 }))
                 .filter(e => e.name);
@@ -2227,6 +2306,12 @@ function updateRanking() {
             }
             try {
                 await setDoc(doc(db, 'mitspieler', 'Liste'), { Mitspieler: clean });
+                // Preisskat-Namen-Cache aktualisieren, damit die Filterung sofort greift
+                window.__preisskatNames = new Set(
+                    clean.filter(e => e.preisskat).map(e => preisskatNameKey(e.name))
+                );
+                window.__preisskatLoaded = true;
+                window.applyPreisskatFilter();
                 alert(`${clean.length} Mitspieler gespeichert.`);
             } catch (err) {
                 console.error(err);
