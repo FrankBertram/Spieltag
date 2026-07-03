@@ -255,6 +255,14 @@
         let editingSeries = null;
         let guests = new Set();
 
+        // Zusatztermine außerhalb der 24 regulären Spieltage.
+        // Werden bewusst NICHT in Monats- und Jahreswertung berücksichtigt,
+        // sind aber im Haupt-Dropdown wähl-/eintragbar und in der Tageswertung sichtbar.
+        const EXTRA_SPIELTAGE = [
+            { iso: '2026-07-11', dd: '11', mm: '07', yyyy: '2026', label: '11.07',
+              name: '43. Pulheimer Stadtmeisterschaft', extra: true }
+        ];
+
 	const datum = new Date();
         const datumText = datum.toLocaleDateString('de-DE', {
 	        day: '2-digit',
@@ -300,6 +308,14 @@
                     if (iso === todayIso) opt.selected = true;
                     spieltagSelect.appendChild(opt);
                 }
+                // Zusatztermine (z. B. Stadtmeisterschaft) ans Ende hängen
+                EXTRA_SPIELTAGE.forEach(ex => {
+                    const opt = document.createElement('option');
+                    opt.value = ex.iso;
+                    opt.textContent = `${ex.name} (${ex.dd}.${ex.mm}.${ex.yyyy})`;
+                    if (ex.iso === todayIso) opt.selected = true;
+                    spieltagSelect.appendChild(opt);
+                });
                 spieltagSelect.addEventListener('change', function() {
                     if (this.value && dateInput) dateInput.value = this.value;
                 });
@@ -1459,6 +1475,11 @@ function updateRanking() {
                 const yyyy = d.getUTCFullYear();
                 dates.push({ iso, label: `${dd}.${mm}`, dd, mm, yyyy: String(yyyy) });
             }
+            // Zusatztermine am Ende – bewusst nach den 24 regulären Spieltagen,
+            // damit die reguläre Spieltag-Nummerierung (1–24) erhalten bleibt.
+            EXTRA_SPIELTAGE.forEach(ex => {
+                dates.push({ iso: ex.iso, label: ex.label, dd: ex.dd, mm: ex.mm, yyyy: ex.yyyy, name: ex.name, extra: true });
+            });
             return dates;
         }
 
@@ -1561,7 +1582,7 @@ function updateRanking() {
                 dates.forEach((d, i) => {
                     const opt = document.createElement('option');
                     opt.value = String(i);
-                    opt.textContent = `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
+                    opt.textContent = d.extra ? `${d.name} — ${d.dd}.${d.mm}.${d.yyyy}` : `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
                     select.appendChild(opt);
                 });
                 select.value = String(pickDefaultSpieltagIndex(dates));
@@ -1604,7 +1625,9 @@ function updateRanking() {
 
             const heading = document.getElementById('tageswertungHeading');
             if (heading) {
-                heading.textContent = `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`;
+                heading.textContent = date.extra
+                    ? `${date.name} (${date.dd}.${date.mm}.${date.yyyy})`
+                    : `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`;
             }
 
             const cell = 'padding:6px 10px;border:1px solid #ddd;';
@@ -1652,12 +1675,19 @@ function updateRanking() {
                 const dates = getSpieltagDates();
                 select.innerHTML = '';
                 dates.forEach((d, i) => {
+                    if (d.extra) return; // Zusatztermine gehören nicht in die Monatswertung
                     const opt = document.createElement('option');
                     opt.value = String(i);
                     opt.textContent = `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
                     select.appendChild(opt);
                 });
-                select.value = String(pickDefaultSpieltagIndex(dates));
+                let defIdx = pickDefaultSpieltagIndex(dates);
+                if (dates[defIdx] && dates[defIdx].extra) {
+                    // auf regulären Spieltag im selben Monat ausweichen, sonst ersten regulären
+                    const sameMonth = dates.findIndex(d => !d.extra && d.mm === dates[defIdx].mm && d.yyyy === dates[defIdx].yyyy);
+                    defIdx = sameMonth >= 0 ? sameMonth : dates.findIndex(d => !d.extra);
+                }
+                select.value = String(defIdx);
                 const { allNames, members, playerData, datesWithData } = await loadAllPlayersAndResults(dates);
                 monatsData = { dates, allNames, members, playerData, datesWithData };
                 select.onchange = () => renderMonatswertung();
@@ -1675,7 +1705,7 @@ function updateRanking() {
             const content = document.getElementById('monatswertungContent');
             const idx = Number(select.value);
             const ref = dates[idx];
-            const monthDates = dates.filter(d => d.yyyy === ref.yyyy && d.mm === ref.mm);
+            const monthDates = dates.filter(d => d.yyyy === ref.yyyy && d.mm === ref.mm && !d.extra);
             const monatIdx = parseInt(ref.mm, 10) - 1;
             const monatName = MONAT_NAMEN[monatIdx] || ref.mm;
             const monthHasAnyData = monthDates.some(d => datesWithData.has(d.iso));
@@ -1822,7 +1852,9 @@ function updateRanking() {
             const idx = Number(sel.value);
             const d = tagesData.dates[idx];
             const stNr = String(idx + 1).padStart(2, '0');
-            const filename = `Tagessieger ${stNr}. Spieltag - ${d.dd}.${d.mm}.${d.yyyy}.pdf`;
+            const filename = d.extra
+                ? `Tagessieger ${d.name} - ${d.dd}.${d.mm}.${d.yyyy}.pdf`
+                : `Tagessieger ${stNr}. Spieltag - ${d.dd}.${d.mm}.${d.yyyy}.pdf`;
             return exportPortraitPdf('tageswertungModal', 'tageswertungContent', 'tageswertungHeading', filename);
         };
         window.exportMonatswertungPdf = function() {
@@ -2108,7 +2140,9 @@ function updateRanking() {
             const spieltagDe = `${dd}.${mm}.${yyyy}`;
             const allDates = getSpieltagDates();
             const spieltagIdx = allDates.findIndex(d => d.iso === spieltagIso);
-            const spieltagNr = spieltagIdx >= 0 ? (spieltagIdx + 1) : null;
+            const selDate = spieltagIdx >= 0 ? allDates[spieltagIdx] : null;
+            const isExtra = !!(selDate && selDate.extra);
+            const spieltagNr = (spieltagIdx >= 0 && !isExtra) ? (spieltagIdx + 1) : null;
 
             try {
                 showEmailProgress('Erstelle Jahreswertung (1/3) …');
@@ -2132,10 +2166,12 @@ function updateRanking() {
             }
             hideEmailProgress();
 
-            const subject = spieltagNr
-                ? `Ergebnisse ${spieltagNr}. Spieltag - ${spieltagDe} - 1. Sintherner Skatclub`
-                : `Ergebnisse Spieltag ${spieltagDe} - 1. Sintherner Skatclub`;
-            const spieltagBezeichnung = spieltagNr ? `${spieltagNr}. Spieltag` : `Spieltag ${spieltagDe}`;
+            const subject = isExtra
+                ? `Ergebnisse ${selDate.name} - ${spieltagDe} - 1. Sintherner Skatclub`
+                : (spieltagNr
+                    ? `Ergebnisse ${spieltagNr}. Spieltag - ${spieltagDe} - 1. Sintherner Skatclub`
+                    : `Ergebnisse Spieltag ${spieltagDe} - 1. Sintherner Skatclub`);
+            const spieltagBezeichnung = isExtra ? selDate.name : (spieltagNr ? `${spieltagNr}. Spieltag` : `Spieltag ${spieltagDe}`);
             const stNrPad = spieltagNr ? String(spieltagNr).padStart(2, '0') : '00';
             const monatName = (allDates[spieltagIdx] && MONAT_NAMEN[parseInt(allDates[spieltagIdx].mm, 10) - 1]) || '';
             const body = [
@@ -2148,7 +2184,9 @@ function updateRanking() {
                 '',
                 'Anhänge:',
                 `  • Jahreswertung_${yyyy}-${stNrPad}.pdf`,
-                `  • Tagessieger ${stNrPad}. Spieltag - ${spieltagDe}.pdf`,
+                isExtra
+                    ? `  • Tagessieger ${selDate.name} - ${spieltagDe}.pdf`
+                    : `  • Tagessieger ${stNrPad}. Spieltag - ${spieltagDe}.pdf`,
                 `  • Monatssieger ${monatName}.pdf`
             ].join('\n');
 
