@@ -254,6 +254,9 @@
         let editingPlayer = null;
         let editingSeries = null;
         let guests = new Set();
+        // Nur für den Sonderspieltag temporär ergänzte reine Preisskat-Spieler.
+        // Werden NICHT in localStorage persistiert (kein Geister-Spieler nach Reload).
+        let preisskatTempPlayers = new Set();
 
         // Zusatztermine außerhalb der 24 regulären Spieltage.
         // Werden bewusst NICHT in Monats- und Jahreswertung berücksichtigt,
@@ -340,9 +343,19 @@
         });
 
         function saveState() {
-            const checked = allPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            // Temporär ergänzte Preisskat-Spieler nicht persistieren
+            const persistPlayers = allPlayers.filter(p => !preisskatTempPlayers.has(p));
+            const checked = persistPlayers.filter(p => document.getElementById('cb_' + p)?.checked);
+            const persistResults = {};
+            const persistImported = {};
+            persistPlayers.forEach(p => {
+                if (results[p]) persistResults[p] = results[p];
+                if (imported[p]) persistImported[p] = imported[p];
+            });
             localStorage.setItem('skat_state', JSON.stringify({
-                allPlayers, selectedPlayers: checked, results, imported, currentRound, guests: [...guests]
+                allPlayers: persistPlayers, selectedPlayers: checked,
+                results: persistResults, imported: persistImported,
+                currentRound, guests: [...guests]
             }));
         }
 
@@ -481,6 +494,84 @@ function loadPlayers(text) {
             });
             updateSelectedPlayers();
         }
+
+        // Namens-Schlüssel für den Abgleich Firestore <-> Haupt-Spielerliste.
+        function preisskatKey(name) {
+            return String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        // Beim Zurückschalten vom Sonderspieltag: nur für Preisskat ergänzte Spieler wieder entfernen.
+        function removePreisskatTempPlayers() {
+            const container = document.getElementById('playerCheckboxes');
+            if (!container) return false;
+            let removed = false;
+            container.querySelectorAll('.checkbox-item[data-preisskat-temp]').forEach(item => {
+                const cb = item.querySelector('input[type=checkbox]');
+                const name = cb ? (cb.id || '').replace(/^cb_/, '') : '';
+                if (name) {
+                    allPlayers = allPlayers.filter(p => p !== name);
+                    delete results[name];
+                    delete imported[name];
+                    guests.delete(name);
+                    preisskatTempPlayers.delete(name);
+                    removed = true;
+                }
+                item.remove();
+            });
+            return removed;
+        }
+
+        // Beim Sonderspieltag: nur Preisskat-Teilnehmer zeigen. Fehlende (reine Preisskat-
+        // Spieler, die nicht in der lokalen Liste stehen) werden temporär ergänzt.
+        window.applyPreisskatFilter = function() {
+            const sel = document.getElementById('spieltagSelect');
+            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value));
+            // Daten noch nicht sicher geladen? Nachladen anstoßen und bis dahin alle zeigen.
+            if (isExtra && !window.__preisskatLoaded) {
+                if (typeof window.loadPreisskatNames === 'function') window.loadPreisskatNames();
+                isExtra = false;
+            }
+            const container = document.getElementById('playerCheckboxes');
+            if (!container) return;
+
+            const preisNames = window.__preisskatNames || [];
+            const preisKeys = new Set(preisNames.map(preisskatKey));
+            let changed = false;
+
+            if (isExtra) {
+                // Fehlende Preisskat-Spieler temporär in die Auswahlliste aufnehmen
+                preisNames.forEach(origName => {
+                    const key = preisskatKey(origName);
+                    const exists = allPlayers.some(p => preisskatKey(p) === key);
+                    if (!exists) {
+                        addPlayerToList(origName);
+                        preisskatTempPlayers.add(origName);
+                        const cb = document.getElementById('cb_' + origName);
+                        const item = cb && cb.closest('.checkbox-item');
+                        if (item) item.dataset.preisskatTemp = '1';
+                        changed = true;
+                    }
+                });
+            } else {
+                // Regulärer Spieltag: temporär ergänzte Preisskat-Spieler wieder entfernen
+                if (removePreisskatTempPlayers()) changed = true;
+            }
+
+            container.querySelectorAll('.checkbox-item').forEach(item => {
+                const cb = item.querySelector('input[type=checkbox]');
+                if (!cb) return;
+                const name = (cb.id || '').replace(/^cb_/, '');
+                const allowed = !isExtra || preisKeys.has(preisskatKey(name));
+                if (!allowed) {
+                    item.style.display = 'none';
+                    if (cb.checked) { cb.checked = false; changed = true; }
+                } else {
+                    item.style.display = '';
+                }
+            });
+
+            if (changed) updateSelectedPlayers();
+        };
 
         function showAddPlayer() {
             document.getElementById('addPlayerSection').style.display = 'block';
@@ -1910,63 +2001,35 @@ function updateRanking() {
         function preisskatNameKey(name) {
             return String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ');
         }
-        // Set der Namen (normalisiert), die für Preisskat angekreuzt sind. Wird lazy aus Firestore geladen.
-        window.__preisskatNames = new Set();
+        // Original-Namen der Preisskat-Teilnehmer (aus Firestore). Für Abgleich/Ergänzung der Haupt-Spielerliste.
+        window.__preisskatNames = [];
         window.__preisskatLoaded = false;
         let __preisskatLoading = false;
-        async function loadPreisskatNames() {
+        window.loadPreisskatNames = async function() {
             if (__preisskatLoading) return;
             __preisskatLoading = true;
             try {
                 const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
-                const set = new Set();
+                const names = [];
                 if (snap.exists()) {
                     (snap.data().Mitspieler || []).forEach(e => {
                         if (!e || typeof e !== 'object') return;
-                        if (isPreisskatTrue(e.preisskat)) set.add(preisskatNameKey(e.name));
+                        const nm = (e.name || '').trim();
+                        if (nm && isPreisskatTrue(e.preisskat)) names.push(nm);
                     });
                 }
-                window.__preisskatNames = set;
+                window.__preisskatNames = names;
                 window.__preisskatLoaded = true;
-                window.applyPreisskatFilter();
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
             } catch (err) {
                 // fail-open: Laden nur erneut versuchen, nicht ausblenden
                 console.warn('Preisskat-Namen konnten nicht geladen werden:', err);
             } finally {
                 __preisskatLoading = false;
             }
-        }
-        // Blendet in der Haupt-Auswahlliste beim Sonderspieltag alle Nicht-Preisskat-Spieler aus.
-        window.applyPreisskatFilter = function() {
-            const sel = document.getElementById('spieltagSelect');
-            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value));
-            // Daten noch nicht sicher geladen? Nachladen anstoßen und bis dahin alle zeigen.
-            if (isExtra && !window.__preisskatLoaded) {
-                loadPreisskatNames();
-                isExtra = false;
-            }
-            const container = document.getElementById('playerCheckboxes');
-            if (!container) return;
-            const preis = window.__preisskatNames || new Set();
-            let changed = false;
-            container.querySelectorAll('.checkbox-item').forEach(item => {
-                const cb = item.querySelector('input[type=checkbox]');
-                if (!cb) return;
-                const name = (cb.id || '').replace(/^cb_/, '');
-                const allowed = !isExtra || preis.has(preisskatNameKey(name));
-                if (!allowed) {
-                    item.style.display = 'none';
-                    if (cb.checked) { cb.checked = false; changed = true; }
-                } else {
-                    item.style.display = '';
-                }
-            });
-            if (changed && typeof window.updateSelectedPlayers === 'function') {
-                window.updateSelectedPlayers();
-            }
         };
         // Preisskat-Namen beim Start vorladen, damit die Filterung beim Wechsel sofort greift.
-        loadPreisskatNames();
+        window.loadPreisskatNames();
 
         window.mvSet = function(i, field, value) {
             if (mitspielerVerwData[i]) mitspielerVerwData[i][field] = value;
@@ -2307,11 +2370,9 @@ function updateRanking() {
             try {
                 await setDoc(doc(db, 'mitspieler', 'Liste'), { Mitspieler: clean });
                 // Preisskat-Namen-Cache aktualisieren, damit die Filterung sofort greift
-                window.__preisskatNames = new Set(
-                    clean.filter(e => e.preisskat).map(e => preisskatNameKey(e.name))
-                );
+                window.__preisskatNames = clean.filter(e => e.preisskat).map(e => e.name);
                 window.__preisskatLoaded = true;
-                window.applyPreisskatFilter();
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
                 alert(`${clean.length} Mitspieler gespeichert.`);
             } catch (err) {
                 console.error(err);
