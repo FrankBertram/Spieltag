@@ -1137,6 +1137,7 @@ function updateRanking() {
             </div>
             <h2 style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Mitspieler-Verwaltung</h2>
             <div style="justify-self:end;display:flex;align-items:center;gap:8px;">
+                <button onclick="copyPreisskatNames(this)" style="background:#1565c0;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Preisskat kopieren</button>
                 <button onclick="saveMitspielerVerw()" style="background:#388e3c;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Speichern</button>
                 <button onclick="closeMitspielerVerw()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
             </div>
@@ -2202,6 +2203,41 @@ function updateRanking() {
         window.addMitspielerVerwRow = function() {
             mitspielerVerwData.push({ name: '', eintritt: '', mitglied: false, preisskat: false, email: '' });
             renderMitspielerVerw();
+        };
+
+        // Alle Namen mit Preisskat=TRUE zeilenweise in die Zwischenablage kopieren
+        window.copyPreisskatNames = async function(btn) {
+            const names = mitspielerVerwData
+                .filter(e => e && e.preisskat && (e.name || '').trim())
+                .map(e => e.name.trim());
+            if (!names.length) {
+                alert('Kein Mitspieler mit Preisskat=Ja gefunden.');
+                return;
+            }
+            const text = names.join('\n');
+            const origLabel = btn ? btn.textContent : '';
+            const showDone = () => {
+                if (!btn) return;
+                btn.textContent = names.length + ' kopiert ✓';
+                setTimeout(() => { btn.textContent = origLabel; }, 1800);
+            };
+            try {
+                await navigator.clipboard.writeText(text);
+                showDone();
+            } catch (err) {
+                // Fallback für ältere Browser / unsichere Kontexte
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                document.body.removeChild(ta);
+                if (ok) showDone();
+                else alert('Kopieren fehlgeschlagen. Namen:\n\n' + text);
+            }
         };
 
         window.removeMitspielerVerw = function(idx) {
