@@ -215,7 +215,11 @@
             <button id="startRound2" onclick="startRound2()" style="display:none; background:#ff9800;">
                 Serie 2 starten
             </button>
-            
+
+            <button id="saveSetzlisteBtn" onclick="saveSetzlisteSerie2(this)" style="display:none; background:#1565c0;">
+                Setzliste für Serie 2 speichern
+            </button>
+
             <p id="message"></p>
 
             <div id="exportSection">
@@ -720,6 +724,9 @@ function loadPlayers(text) {
                     ? 'S2: Ergebnis eintragen'
                     : 'S1: Ergebnis eintragen';
             }
+            // Setzliste-Button: sichtbar, sobald alle Serie-1-Ergebnisse vorliegen
+            const setzBtn = document.getElementById('saveSetzlisteBtn');
+            if (setzBtn) setzBtn.style.display = (total > 0 && done1 === total) ? 'block' : 'none';
             if (currentRound === 1) {
                 const allHaveRes1 = done1 === total;
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
@@ -847,6 +854,40 @@ function getTableSizes(n) {
     }
     return sizes;
 }
+
+// Serie-1-Ergebnis als Setzliste (Tischeinteilung) für Serie 2 in Firestore speichern.
+// Rangfolge = Serie-1-Punkte absteigend, Gruppierung via getTableSizes (4er bevorzugt).
+window.saveSetzlisteSerie2 = async function(btn) {
+    if (typeof window.saveTurnierauslosung !== 'function') {
+        alert('App ist noch nicht bereit – bitte einen Moment warten und erneut versuchen.');
+        return;
+    }
+    const list = selectedPlayers.map(name => ({
+        name,
+        res1: results[name] ? results[name].res1 : ''
+    }));
+    if (list.length < 3) { alert('Zu wenige Spieler für eine Setzliste (mindestens 3).'); return; }
+    const missing = list.filter(p => p.res1 === '' || p.res1 == null);
+    if (missing.length) {
+        if (!confirm(missing.length + ' Spieler ohne Serie-1-Ergebnis. Fehlende Werte als 0 werten und trotzdem speichern?')) return;
+    }
+    // Serie-1-Rangfolge (Punkte absteigend), stabil nach Name bei Gleichstand
+    list.sort((a, b) => ((b.res1 || 0) - (a.res1 || 0)) || a.name.localeCompare(b.name, 'de'));
+    const sizes = getTableSizes(list.length);
+    const tische = [];
+    let idx = 0;
+    sizes.forEach((size, t) => {
+        const spieler = [];
+        for (let i = 0; i < size && idx < list.length; i++, idx++) spieler.push(list[idx].name);
+        tische.push({ tisch: t + 1, groesse: size, spieler });
+    });
+    await window.saveTurnierauslosung({
+        serie: '2',
+        spielerAnzahl: list.length,
+        tischAnzahl: tische.length,
+        tische
+    }, btn);
+};
 
 
 
@@ -1159,7 +1200,7 @@ function updateRanking() {
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, addDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
         const firebaseConfig = {
@@ -2445,6 +2486,34 @@ function updateRanking() {
                 );
             } else {
                 prompt('UID (manuell kopieren):', txt);
+            }
+        };
+
+        // Setzliste/Turnierauslosung in Firestore-Collection 'turnierauslosungen' ablegen
+        window.saveTurnierauslosung = async function(payload, btn) {
+            const u = auth.currentUser;
+            if (!u) { alert('Bitte zuerst mit Google anmelden, um speichern zu können.'); return; }
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Speichere …'; }
+            try {
+                await addDoc(collection(db, 'turnierauslosungen'), {
+                    serie: payload.serie,
+                    spielerAnzahl: payload.spielerAnzahl,
+                    tischAnzahl: payload.tischAnzahl,
+                    tische: payload.tische,
+                    uid: u.uid,
+                    email: u.email || '',
+                    angemeldetAls: u.displayName || u.email || '',
+                    createdAt: serverTimestamp()
+                });
+                if (btn) {
+                    btn.textContent = 'Setzliste gespeichert ✓';
+                    setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
+                }
+            } catch (err) {
+                console.error('Setzliste speichern fehlgeschlagen:', err);
+                alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+                if (btn) { btn.textContent = origLabel; btn.disabled = false; }
             }
         };
 
