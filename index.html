@@ -164,6 +164,7 @@
             <div style="display:flex;gap:5px;margin-bottom:5px;">
                 <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
                 <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
+                <button onclick="loadMitspielerFromFirebase(this)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;background:#00897b;color:white;border:none;border-radius:4px;cursor:pointer;">Aus Firebase laden</button>
             </div>
             <div class="checkbox-list" id="playerCheckboxes"></div>
             
@@ -2115,6 +2116,44 @@ function updateRanking() {
         };
         // Preisskat-Namen beim Start vorladen, damit die Filterung beim Wechsel sofort greift.
         window.loadPreisskatNames();
+
+        // Alle in Firebase angelegten Mitspieler in die Auswahlliste laden (nicht-destruktiv:
+        // bereits vorhandene Spieler/Ergebnisse bleiben erhalten, nur fehlende werden ergänzt).
+        window.loadMitspielerFromFirebase = async function(btn) {
+            const origLabel = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Lade …'; }
+            try {
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                const names = [];
+                if (snap.exists()) {
+                    (snap.data().Mitspieler || []).forEach(e => {
+                        let nm = '';
+                        if (typeof e === 'string') nm = e.trim();
+                        else if (e && typeof e === 'object') nm = (e.name || '').trim();
+                        if (nm) names.push(nm);
+                    });
+                }
+                if (!names.length) {
+                    alert('Keine Mitspieler in Firebase gefunden.');
+                    return;
+                }
+                names.sort((a, b) => a.localeCompare(b, 'de'));
+                let added = 0;
+                names.forEach(nm => {
+                    const exists = allPlayers.some(p => p.toLowerCase() === nm.toLowerCase());
+                    if (!exists) { addPlayerToList(nm); added++; }
+                });
+                updateSelectedPlayers();
+                if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+                saveState();
+                alert(`${names.length} Mitspieler in Firebase – ${added} neu in die Liste übernommen.`);
+            } catch (err) {
+                console.error('Mitspieler aus Firebase laden fehlgeschlagen:', err);
+                alert('Laden fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origLabel; }
+            }
+        };
 
         window.mvSet = function(i, field, value) {
             if (mitspielerVerwData[i]) mitspielerVerwData[i][field] = value;
