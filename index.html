@@ -980,14 +980,19 @@ function updateRanking() {
             currentRound = 1;
             editingPlayer = null;
             editingSeries = null;
-            // Spielerliste frisch aus Mitspieler.txt laden (entfernt Gäste/importierte Spieler).
-            // Fallback: Datei nicht erreichbar → vorhandene Liste ohne Gäste übernehmen.
+            preisskatTempPlayers = new Set();
+            // Liste sofort leeren (entfernt Gäste, importierte und temporäre Spieler) …
+            loadPlayers('');
+            // … und frisch aus Mitspieler.txt neu einlesen.
             fetch('Mitspieler.txt')
-                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(r => r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)))
                 .then(text => loadPlayers(text))
-                .catch(() => {
-                    const regulars = allPlayers.filter(p => !guests.has(p));
-                    loadPlayers(regulars.join('\n'));
+                .catch(err => {
+                    // Bewusst NICHT die alte Liste wiederherstellen – sie bleibt leer.
+                    console.warn('Mitspieler.txt konnte nicht geladen werden:', err);
+                    loadPlayers('');
+                    const msg = document.getElementById('message');
+                    if (msg) msg.textContent = 'Mitspieler.txt konnte nicht geladen werden – Liste ist leer. Bitte über HTTP öffnen oder „Aus Firebase laden" nutzen.';
                 });
         }
 
