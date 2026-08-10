@@ -1344,6 +1344,12 @@ function updateRanking() {
                 const y = margin + titleH + 2;
                 pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
                 const meta = window.__gesamtMeta || {};
+                if (meta.hasTie) {
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(120);
+                    pdf.text('* Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.', margin, pageH - 3);
+                    pdf.setTextColor(0);
+                }
                 const year = meta.seasonYear || new Date().getFullYear();
                 const stNr = String(meta.playedSpieltage || 0).padStart(2, '0');
                 pdf.save(`Jahreswertung_${year}-${stNr}.pdf`);
@@ -1538,17 +1544,59 @@ function updateRanking() {
                         .filter(v => v >= 0)
                         .sort((a, b) => a - b);
                     const streich = streichPool.slice(dropped.size, dropped.size + 2);
-                    return { name, byDate, missing, dropped, single, total, streich };
+                    // Tie-Break: alle tatsächlich gespielten Spieltagergebnisse (S1+S2), absteigend.
+                    // 750-Default für Abwesenheit (missing) zählt NICHT als echtes Ergebnis.
+                    const sortedDays = pairs
+                        .filter(pr => !missing.has(pr.iso))
+                        .map(pr => pr.value)
+                        .sort((x, y) => y - x);
+                    return { name, byDate, missing, dropped, single, total, streich, sortedDays };
                 });
-                players.sort((a, b) => b.total - a.total);
 
+                // Vergleicht die Tagesergebnis-Listen der Reihe nach: bestes, dann 2.-bestes, usw.
+                // Rückgabe < 0 wenn a vor b, > 0 wenn b vor a, 0 bei Gleichstand.
+                function compareDays(a, b) {
+                    const n = Math.max(a.length, b.length);
+                    for (let i = 0; i < n; i++) {
+                        const av = i < a.length ? a[i] : -Infinity;
+                        const bv = i < b.length ? b[i] : -Infinity;
+                        if (av !== bv) return bv - av; // höheres Ergebnis zuerst
+                    }
+                    return 0;
+                }
+
+                // Sortierung: Gesamtpunkte absteigend; bei Gleichstand kaskadierend über die Tagesergebnisse.
+                players.sort((a, b) => (b.total - a.total) || compareDays(a.sortedDays, b.sortedDays));
+
+                // Gleicher Rang nur bei gleichen Punkten UND identischer Tagesergebnis-Reihe.
                 let currentRank = 1;
                 players.forEach((p, i) => {
+                    const prev = players[i - 1];
+                    const tiedWithPrev = i > 0 && prev.total === p.total && compareDays(prev.sortedDays, p.sortedDays) === 0;
                     if (i === 0) currentRank = 1;
-                    else if (p.total !== players[i - 1].total) currentRank = i + 1;
+                    else if (!tiedWithPrev) currentRank = i + 1;
                     p.rank = currentRank;
-                    p.displayRank = (i === 0 || p.total !== players[i - 1].total) ? currentRank : '';
+                    p.displayRank = (i === 0 || !tiedWithPrev) ? currentRank : '';
                 });
+
+                // Fußnote: Punktgleichstände, die erst über die Tagesergebnisse entschieden wurden.
+                const tieNotes = [];
+                for (let i = 0; i < players.length;) {
+                    let j = i;
+                    while (j + 1 < players.length && players[j + 1].total === players[i].total) j++;
+                    if (j > i) {
+                        const group = players.slice(i, j + 1);
+                        // Nur relevant, wenn die Tagesergebnisse tatsächlich eine Reihenfolge erzwungen haben.
+                        const decided = group.some((p, k) => k > 0 && compareDays(group[k - 1].sortedDays, p.sortedDays) !== 0);
+                        if (decided) {
+                            group.forEach(p => { p.tieDecided = true; });
+                            const namesList = group.map(p => `${p.rank}. ${p.name}`).join(', ');
+                            tieNotes.push(`${group[0].total} Punkte: ${namesList}`);
+                        }
+                    }
+                    i = j + 1;
+                }
+                window.__gesamtMeta.hasTie = tieNotes.length > 0;
 
                 if (players.length === 0) {
                     content.innerHTML = '<p>Keine Daten in Firestore gefunden.</p>';
@@ -1579,7 +1627,7 @@ function updateRanking() {
                     const stickyNameRow = `position:sticky;left:30px;background:${rowBg};z-index:1;`;
                     html += `<tr style="background:${rowBg};">`;
                     html += `<td style="${cell}${stickyRankRow}text-align:right;">${p.displayRank}</td>`;
-                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${p.name}</td>`;
+                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${p.name}${p.tieDecided ? '<sup style="color:#d32f2f;">*</sup>' : ''}</td>`;
                     dates.forEach(d => {
                         const v = p.byDate[d.iso];
                         if (v != null) {
@@ -1604,6 +1652,12 @@ function updateRanking() {
                     html += '</tr>';
                 });
                 html += '</tbody></table></div>';
+                if (tieNotes.length) {
+                    html += '<div style="margin:8px 4px 0;font-size:11px;color:#555;font-family:Arial,sans-serif;line-height:1.5;">';
+                    html += '<span style="color:#d32f2f;">*</span> Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.';
+                    tieNotes.forEach(n => { html += `<div style="margin-left:12px;">${n}</div>`; });
+                    html += '</div>';
+                }
                 content.innerHTML = html;
                 fitGesamtlisteToViewport();
             } catch (err) {
