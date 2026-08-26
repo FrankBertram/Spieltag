@@ -117,7 +117,6 @@
 }		
 		.thick-line {border-top: 3px solid #333 !important;}
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -1276,42 +1275,24 @@ function updateRanking() {
         };
 
         window.exportGesamtlistePdf = async function() {
-            const scroller = document.getElementById('gesamtlisteScroller');
-            if (!scroller) return;
-            const table = scroller.querySelector('table');
-            if (!table) {
-                alert('Tabelle nicht gefunden.');
+            if (!window.jspdf) {
+                alert('PDF-Bibliothek nicht geladen — bitte Internetverbindung prüfen.');
                 return;
             }
-            if (!window.html2canvas || !window.jspdf) {
-                alert('PDF-Bibliotheken nicht geladen — bitte Internetverbindung prüfen.');
+            const data = window.__gesamtData;
+            if (!data || !data.players || !data.players.length) {
+                alert('Keine Daten zum Export vorhanden. Bitte Jahreswertung erneut öffnen.');
                 return;
             }
-            const savedZoom = scroller.style.zoom;
-            const savedMaxHeight = scroller.style.maxHeight;
-            const savedOverflow = scroller.style.overflow;
-            scroller.style.zoom = '1';
-            scroller.style.maxHeight = 'none';
-            scroller.style.overflow = 'visible';
             try {
-                const canvas = await window.html2canvas(table, {
-                    scale: 2,
-                    backgroundColor: '#ffffff',
-                    logging: false
-                });
-                const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                const { players, dates } = data;
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                const pageW = 297;
-                const pageH = 210;
-                const margin = 8;
-                const titleH = 12;
-                const availW = pageW - 2 * margin;
-                const availH = pageH - 2 * margin - titleH;
-                const heading = document.getElementById('gesamtlisteHeading')?.textContent || 'Jahreswertung';
-                const stand = document.getElementById('gesamtlisteStand')?.textContent || '';
+                const pageW = 297, pageH = 210, margin = 8;
+
+                // ---------- Kopfzeile ----------
                 const clubName = '1. Sintherner Skatclub';
-                let logoData = window.SKAT_LOGO_DATA || null;
+                const logoData = window.SKAT_LOGO_DATA || null;
                 let logoRatio = 45 / 44;
                 if (logoData) {
                     try {
@@ -1322,45 +1303,154 @@ function updateRanking() {
                             im.src = logoData;
                         });
                         logoRatio = logoImg.naturalWidth / logoImg.naturalHeight;
-                    } catch (e) {
-                        console.warn('Logo-Maße konnten nicht ermittelt werden:', e);
-                    }
+                    } catch (e) { console.warn('Logo-Maße:', e); }
                 }
-                const logoH = 11;
-                const logoW = logoH * logoRatio;
-                if (logoData) {
-                    pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
-                }
-                pdf.setFontSize(16);
-                pdf.setFont(undefined, 'bold');
+                const logoH = 11, logoW = logoH * logoRatio;
+                if (logoData) pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
+                pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
+                pdf.setTextColor(0, 0, 0);
                 pdf.text(clubName, margin + (logoData ? logoW + 3 : 0), margin + 8);
-                pdf.text(heading, pageW / 2, margin + 8, { align: 'center' });
-                pdf.setFontSize(12);
-                pdf.text(stand, pageW - margin, margin + 8, { align: 'right' });
+                pdf.text(data.titelText || 'Jahreswertung', pageW / 2, margin + 8, { align: 'center' });
+                pdf.setFontSize(11);
+                pdf.text(data.standText || '', pageW - margin, margin + 8, { align: 'right' });
                 pdf.setFont(undefined, 'normal');
-                const drawW = availW;
-                const drawH = availH;
-                const x = (pageW - drawW) / 2;
-                const y = margin + titleH + 2;
-                pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
-                const meta = window.__gesamtMeta || {};
-                if (meta.hasTie) {
-                    pdf.setFontSize(7);
-                    pdf.setTextColor(120);
-                    pdf.text('* Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.', margin, pageH - 3);
-                    pdf.setTextColor(0);
+
+                // ---------- Spaltenlayout (feste Breiten in mm) ----------
+                const cols = [];
+                cols.push({ key: 'rank', w: 6, align: 'right' });
+                cols.push({ key: 'name', w: 35, align: 'left' });
+                dates.forEach((d, i) => cols.push({ key: 'st', iso: d.iso, header: 'ST ' + (i + 1), sub: d.label, w: 8.2, align: 'right' }));
+                cols.push({ key: 'total', w: 15, align: 'right', fill: [227, 242, 253], header: 'Gesamt', sub: 'beste 18 ST *', subSize: 5 });
+                cols.push({ key: 'streich', w: 13, align: 'right', fill: [255, 243, 224], header: 'Streich' });
+                cols.push({ key: 'form', w: 17, align: 'right', fill: [232, 245, 233], header: 'Form', sub: 'Ø letzte 8 ST', subSize: 5 });
+                const totalW = cols.reduce((s, c) => s + c.w, 0);
+                const startX = Math.max(margin / 2, (pageW - totalW) / 2);
+                let cxpos = startX;
+                cols.forEach(c => { c.x = cxpos; cxpos += c.w; });
+                const pad = 1.0;
+
+                // ---------- Zeilenhöhen ----------
+                const yTop = margin + 14;
+                const bottomLimit = pageH - margin - 4 - (data.hasTie ? 3.5 : 0);
+                const headerH = 8;
+                const rowH = Math.min(8, Math.max(4, (bottomLimit - yTop - headerH) / players.length));
+                const tableBottom = yTop + headerH + rowH * players.length;
+
+                function cellText(str, col, rowY, h, opts) {
+                    opts = opts || {};
+                    if (str == null || str === '') return;
+                    str = String(str);
+                    pdf.setFontSize(opts.size || 8);
+                    pdf.setFont(undefined, opts.bold ? 'bold' : 'normal');
+                    const tc = opts.color || [0, 0, 0];
+                    pdf.setTextColor(tc[0], tc[1], tc[2]);
+                    const align = col.align;
+                    const tx = align === 'left' ? col.x + pad : col.x + col.w - pad;
+                    const ty = rowY + h / 2;
+                    pdf.text(str, tx, ty, { align, baseline: 'middle' });
+                    if (opts.strike) {
+                        const tw = pdf.getTextWidth(str);
+                        const x1 = align === 'right' ? tx - tw : tx;
+                        const x2 = align === 'right' ? tx : tx + tw;
+                        pdf.setDrawColor(tc[0], tc[1], tc[2]); pdf.setLineWidth(0.25);
+                        pdf.line(x1, ty, x2, ty);
+                    }
+                    pdf.setTextColor(0, 0, 0);
                 }
-                const year = meta.seasonYear || new Date().getFullYear();
-                const stNr = String(meta.playedSpieltage || 0).padStart(2, '0');
+
+                // ---------- Kopfzeile der Tabelle ----------
+                pdf.setFillColor(242, 242, 242);
+                pdf.rect(startX, yTop, totalW, headerH, 'F');
+                cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, yTop, c.w, headerH, 'F'); } });
+                // Alle Hauptüberschriften auf derselben oberen Zeile (zeilenbündig), Unterzeilen darunter.
+                const headMainY = yTop + headerH / 2 - 1.2;
+                const headSubY = yTop + headerH / 2 + 2;
+                cols.forEach(c => {
+                    const label = c.key === 'rank' ? 'Rg' : (c.key === 'name' ? 'Name' : c.header);
+                    const tx = c.align === 'left' ? c.x + pad : c.x + c.w - pad;
+                    pdf.setFont(undefined, 'bold'); pdf.setFontSize(c.headerSize || (c.key === 'st' ? 7 : 8)); pdf.setTextColor(0, 0, 0);
+                    pdf.text(label, tx, headMainY, { align: c.align, baseline: 'middle' });
+                    if (c.sub) {
+                        pdf.setFont(undefined, 'normal'); pdf.setFontSize(c.subSize || 6); pdf.setTextColor(110, 110, 110);
+                        pdf.text(c.sub, c.x + c.w - pad, headSubY, { align: 'right', baseline: 'middle' });
+                        pdf.setTextColor(0, 0, 0);
+                    }
+                });
+
+                // ---------- Datenzeilen ----------
+                players.forEach((p, idx) => {
+                    const rowY = yTop + headerH + idx * rowH;
+                    const zebra = idx % 2 === 1 ? [245, 245, 245] : [255, 255, 255];
+                    pdf.setFillColor(zebra[0], zebra[1], zebra[2]);
+                    pdf.rect(startX, rowY, totalW, rowH, 'F');
+                    cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                    // Sonderhintergründe der ST-Zellen
+                    cols.forEach(c => {
+                        if (c.key !== 'st') return;
+                        const v = p.byDate[c.iso];
+                        if (v == null) return;
+                        if (v < 0) { pdf.setFillColor(211, 47, 47); pdf.rect(c.x, rowY, c.w, rowH, 'F'); }
+                        else if (p.single.has(c.iso)) { pdf.setFillColor(255, 249, 196); pdf.rect(c.x, rowY, c.w, rowH, 'F'); }
+                    });
+                    // Texte
+                    cols.forEach(c => {
+                        if (c.key === 'rank') cellText(p.displayRank, c, rowY, rowH, {});
+                        else if (c.key === 'name') cellText(p.name + (p.tieDecided ? ' *' : ''), c, rowY, rowH, {});
+                        else if (c.key === 'total') cellText(p.total, c, rowY, rowH, { bold: true });
+                        else if (c.key === 'streich') cellText(p.streich && p.streich.length ? p.streich.join(', ') : '-', c, rowY, rowH, { size: 7.5, color: [102, 102, 102] });
+                        else if (c.key === 'form') {
+                            if (p.form == null) { cellText('-', c, rowY, rowH, {}); }
+                            else {
+                                const numRight = c.x + c.w - 7; // feste rechte Kante der Zahl (Platz rechts für die Platzierung)
+                                pdf.setFont(undefined, 'bold'); pdf.setFontSize(7.5); pdf.setTextColor(0, 0, 0);
+                                pdf.text(p.formNum, numRight, rowY + rowH / 2, { align: 'right', baseline: 'middle' });
+                                if (p.formRankStr) {
+                                    pdf.setFont(undefined, 'normal'); pdf.setFontSize(7); pdf.setTextColor(90, 90, 90);
+                                    pdf.text(p.formRankStr, numRight + 1, rowY + rowH / 2, { align: 'left', baseline: 'middle' });
+                                    pdf.setTextColor(0, 0, 0);
+                                }
+                            }
+                        }
+                        else if (c.key === 'st') {
+                            const v = p.byDate[c.iso];
+                            if (v == null) { cellText('-', c, rowY, rowH, { color: [187, 187, 187] }); return; }
+                            const isDropped = p.dropped.has(c.iso);
+                            let color = [0, 0, 0];
+                            if (v < 0) color = [255, 255, 255];
+                            else if (p.missing.has(c.iso)) color = [211, 47, 47];
+                            if (isDropped) color = [150, 150, 150];
+                            cellText(v, c, rowY, rowH, { bold: !isDropped, color, strike: isDropped });
+                        }
+                    });
+                });
+
+                // ---------- Gitterlinien ----------
+                pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.1);
+                let vx = startX;
+                pdf.line(vx, yTop, vx, tableBottom);
+                cols.forEach(c => { vx += c.w; pdf.line(vx, yTop, vx, tableBottom); });
+                pdf.line(startX, yTop, startX + totalW, yTop);
+                for (let r = 0; r <= players.length; r++) {
+                    const yy = yTop + headerH + r * rowH;
+                    pdf.line(startX, yy, startX + totalW, yy);
+                }
+
+                // ---------- Fußnoten (direkt unter der Tabelle) ----------
+                pdf.setFontSize(7); pdf.setTextColor(120, 120, 120);
+                let footY = tableBottom + 4;
+                pdf.text('* negative Tagesergebnisse zählen immer für die Jahreswertung (kein Streichergebnis)', startX, footY);
+                if (data.hasTie) {
+                    footY += 3.5;
+                    pdf.text('* Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.', startX, footY);
+                }
+                pdf.setTextColor(0, 0, 0);
+
+                const year = data.seasonYear || new Date().getFullYear();
+                const stNr = String(data.playedSpieltage || 0).padStart(2, '0');
                 pdf.save(`Jahreswertung_${year}-${stNr}.pdf`);
             } catch (err) {
                 console.error(err);
-                alert('PDF-Export fehlgeschlagen: ' + err.message);
-            } finally {
-                scroller.style.zoom = savedZoom;
-                scroller.style.maxHeight = savedMaxHeight;
-                scroller.style.overflow = savedOverflow;
-                fitGesamtlisteToViewport();
+                alert('PDF-Export fehlgeschlagen: ' + (err && err.message ? err.message : err));
             }
         };
 
@@ -1443,6 +1533,7 @@ function updateRanking() {
                 const snap = await getDocs(collection(db, 'spieltage'));
                 // playerData[name][datum][serie] = punkte – nur Mitspieler, Tisch-Duplikate überschreiben sich
                 const playerData = {};
+                const datesWithData = new Set(); // Tage, für die tatsächlich Einträge existieren
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
                     const datum = data.datum;
@@ -1452,6 +1543,7 @@ function updateRanking() {
                         if (!mitspieler.has(s.name)) return;
                         const val = parseFloat(s.gesamtpunkte);
                         if (Number.isNaN(val)) return;
+                        datesWithData.add(datum);
                         if (!playerData[s.name]) playerData[s.name] = {};
                         if (!playerData[s.name][datum]) playerData[s.name][datum] = {};
                         playerData[s.name][datum][serie] = val;
@@ -1460,8 +1552,19 @@ function updateRanking() {
 
                 const todayIso = new Date().toISOString().slice(0, 10);
                 const DEFAULT_PUNKTE = 750;
-                const playedDates = dates.filter(d => d.iso <= todayIso);
-                const playedSpieltage = playedDates.length;
+                // Sonderspieltage (z. B. Stadtmeisterschaft) zählen NICHT für die Liga – ausschließen.
+                const extraIsoSet = new Set((typeof EXTRA_SPIELTAGE !== 'undefined' ? EXTRA_SPIELTAGE : []).map(ex => ex.iso));
+                // Alle regulären je gespielten Spieltage (auch aus Vorjahren) chronologisch – für die
+                // jahresübergreifende Liga-Berechnung (Schnitt der letzten 8 Spieltage).
+                const allPlayedSorted = [...datesWithData]
+                    .filter(iso => iso <= todayIso && !extraIsoSet.has(iso))
+                    .sort();
+                // Nur Tage mit echten Einträgen zählen als gespielt. Ein Spieltag ohne jeden Eintrag
+                // (z. B. der heutige Abend vor Ergebniseingabe) wird NICHT mit 750 aufgefüllt.
+                const playedDates = dates.filter(d => d.iso <= todayIso && datesWithData.has(d.iso));
+                // ST-Nummer des letzten tatsächlich gespielten Tages (korrekt auch bei Lücken).
+                const lastPlayedIso = playedDates.length ? playedDates[playedDates.length - 1].iso : '';
+                const playedSpieltage = lastPlayedIso ? (dates.findIndex(d => d.iso === lastPlayedIso) + 1) : 0;
                 const seasonYear = dates.length ? dates[0].iso.slice(0, 4) : new Date().getFullYear();
                 function isoToDeDate(iso) {
                     if (!iso) return '';
@@ -1517,7 +1620,8 @@ function updateRanking() {
                             byDate[d.iso] = sum;
                             if (has1 !== has2) single.add(d.iso);
                             pairs.push({ iso: d.iso, value: sum });
-                        } else if (d.iso <= todayIso) {
+                        } else if (d.iso <= todayIso && datesWithData.has(d.iso)) {
+                            // Nur auffüllen, wenn der Tag tatsächlich gespielt wurde (Einträge vorhanden).
                             byDate[d.iso] = DEFAULT_PUNKTE;
                             missing.add(d.iso);
                             pairs.push({ iso: d.iso, value: DEFAULT_PUNKTE });
@@ -1550,7 +1654,32 @@ function updateRanking() {
                         .filter(pr => !missing.has(pr.iso))
                         .map(pr => pr.value)
                         .sort((x, y) => y - x);
-                    return { name, byDate, missing, dropped, single, total, streich, sortedDays };
+                    // Liga: Durchschnitt der letzten 8 Spieltage – JAHRESÜBERGREIFEND (auch Vorjahre).
+                    // Es zählen nur Anwesenheiten (Wert <> 750); bei weniger als 6 Anwesenheiten wird
+                    // mit 750 auf 6 aufgefüllt (Nenner = 6).
+                    let form = null;
+                    const ligaDates = allPlayedSorted
+                        .filter(iso => !eintrittIso || iso >= eintrittIso)
+                        .slice(-8);
+                    if (ligaDates.length > 0) {
+                        const ligaValues = ligaDates.map(iso => {
+                            const day = perDate[iso];
+                            if (day) return (day['1'] || 0) + (day['2'] || 0);
+                            return 750; // an diesem Spieltag abwesend
+                        });
+                        const present = ligaValues.filter(v => v !== 750);
+                        const sumPresent = present.reduce((a, b) => a + b, 0);
+                        if (present.length >= 6) {
+                            form = Math.round((sumPresent / present.length) * 10) / 10;
+                        } else {
+                            form = Math.round(((sumPresent + 750 * (6 - present.length)) / 6) * 10) / 10;
+                        }
+                        // Debug: window.__ligaDebug = 'Nachname, Vorname' setzen und Jahreswertung erneut öffnen.
+                        if (window.__ligaDebug && name === window.__ligaDebug) {
+                            console.log('Liga-Debug', name, '\nTage:', ligaDates, '\nWerte:', ligaValues, '\nanwesend:', present, '\nForm:', form);
+                        }
+                    }
+                    return { name, byDate, missing, dropped, single, total, streich, sortedDays, form };
                 });
 
                 // Vergleicht die Tagesergebnis-Listen der Reihe nach: bestes, dann 2.-bestes, usw.
@@ -1598,13 +1727,37 @@ function updateRanking() {
                 }
                 window.__gesamtMeta.hasTie = tieNotes.length > 0;
 
+                // Form-Platzierung: Rang nach Form-Wert absteigend (gleiche Form = gleicher Rang).
+                const formSorted = players.filter(p => p.form != null).slice().sort((a, b) => b.form - a.form);
+                let fRank = 0, fPrev = null;
+                formSorted.forEach((p, i) => {
+                    if (i === 0 || p.form !== fPrev) fRank = i + 1;
+                    p.formRank = fRank;
+                    fPrev = p.form;
+                });
+                // Zahl und Platzierung getrennt, damit die Zahlen bündig untereinander stehen.
+                players.forEach(p => {
+                    if (p.form == null) { p.formNum = '-'; p.formRankStr = ''; }
+                    else {
+                        p.formNum = p.form.toFixed(1).replace('.', ',');
+                        p.formRankStr = p.formRank ? `(${p.formRank})` : '';
+                    }
+                });
+
+                // Daten für den nativen PDF-Export (feste Spaltenbreiten, keine Bild-Skalierung) bereitstellen.
+                window.__gesamtData = {
+                    players, dates,
+                    titelText, standText, seasonYear, playedSpieltage,
+                    hasTie: tieNotes.length > 0
+                };
+
                 if (players.length === 0) {
                     content.innerHTML = '<p>Keine Daten in Firestore gefunden.</p>';
                     return;
                 }
 
-                const cell = 'padding:4px 4px;border:1px solid #ddd;';
-                const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+                const cell = 'padding:8px 2px;border:1px solid #ddd;';
+                const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;' + cell;
                 const stickyRank = 'position:sticky;left:0;background:white;z-index:1;';
                 const stickyName = 'position:sticky;left:30px;background:white;z-index:1;';
                 const stickyRankTh = 'position:sticky;left:0;z-index:2;';
@@ -1615,10 +1768,11 @@ function updateRanking() {
                 html += `<th style="${th}${stickyRankTh}width:30px;text-align:right;">Rg</th>`;
                 html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
                 dates.forEach((d, i) => {
-                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:30px;min-width:30px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:9px;">${d.label}</span></th>`;
+                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:26px;min-width:26px;max-width:26px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:9px;">${d.label}</span></th>`;
                 });
-                html += `<th style="${th}text-align:right;background:#e3f2fd;">Gesamt</th>`;
-                html += `<th style="${th}text-align:right;background:#fff3e0;white-space:nowrap;">Streich</th>`;
+                html += `<th style="${th}text-align:right;background:#e3f2fd;width:52px;min-width:52px;max-width:52px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste 18 ST&nbsp;<span style="color:#d32f2f;">*</span></span></th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;width:52px;min-width:52px;max-width:52px;">Streich</th>`;
+                html += `<th style="${th}text-align:right;background:#e8f5e9;width:72px;min-width:72px;max-width:72px;">Form<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">Ø letzte 8 ST</span></th>`;
                 html += '</tr></thead><tbody>';
 
                 players.forEach((p, idx) => {
@@ -1641,23 +1795,28 @@ function updateRanking() {
                             if (isMissing && !isNegative) style += 'color:#d32f2f;';
                             if (isDropped) style += 'text-decoration:line-through;opacity:0.45;';
                             else style += 'font-weight:bold;';
-                            html += `<td style="${cell}text-align:right;${style}">${v}</td>`;
+                            html += `<td style="${cell}text-align:right;width:26px;min-width:26px;max-width:26px;${style}">${v}</td>`;
                         } else {
-                            html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                            html += `<td style="${cell}text-align:right;color:#bbb;width:26px;min-width:26px;max-width:26px;">-</td>`;
                         }
                     });
-                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;">${p.total}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;width:52px;min-width:52px;max-width:52px;">${p.total}</td>`;
                     const streichStr = p.streich.length ? p.streich.join(', ') : '-';
-                    html += `<td style="${cell}text-align:right;background:#fff3e0;white-space:nowrap;color:#666;">${streichStr}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#fff3e0;color:#666;width:52px;min-width:52px;max-width:52px;word-break:break-word;">${streichStr}</td>`;
+                    const formCell = p.form == null
+                        ? '-'
+                        : `<span style="display:inline-block;width:40px;text-align:right;">${p.formNum}</span><span style="display:inline-block;width:26px;text-align:left;padding-left:4px;box-sizing:border-box;font-weight:normal;color:#555;">${p.formRankStr}</span>`;
+                    html += `<td style="${cell}text-align:right;background:#e8f5e9;font-weight:bold;width:72px;min-width:72px;max-width:72px;white-space:nowrap;">${formCell}</td>`;
                     html += '</tr>';
                 });
                 html += '</tbody></table></div>';
+                html += '<div style="margin:8px 4px 0;font-size:11px;color:#555;font-family:Arial,sans-serif;line-height:1.5;">';
+                html += '<div><span style="color:#d32f2f;">*</span> negative Tagesergebnisse zählen immer für die Jahreswertung (kein Streichergebnis)</div>';
                 if (tieNotes.length) {
-                    html += '<div style="margin:8px 4px 0;font-size:11px;color:#555;font-family:Arial,sans-serif;line-height:1.5;">';
-                    html += '<span style="color:#d32f2f;">*</span> Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.';
+                    html += '<div style="margin-top:4px;"><span style="color:#d32f2f;">*</span> Bei Punktgleichstand entscheidet das höchste Tagesergebnis, bei erneutem Gleichstand das zweithöchste usw.</div>';
                     tieNotes.forEach(n => { html += `<div style="margin-left:12px;">${n}</div>`; });
-                    html += '</div>';
                 }
+                html += '</div>';
                 content.innerHTML = html;
                 fitGesamtlisteToViewport();
             } catch (err) {
@@ -1833,9 +1992,18 @@ function updateRanking() {
                     : `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`;
             }
 
+            // Daten für den nativen PDF-Export bereitstellen
+            window.__tagesRender = {
+                players, dayHasData,
+                headingText: date.extra
+                    ? `${date.name} (${date.dd}.${date.mm}.${date.yyyy})`
+                    : `Tageswertung — ${stNumber}. Spieltag (${date.dd}.${date.mm}.${date.yyyy})`,
+                date, stNumber
+            };
+
             const cell = 'padding:6px 10px;border:1px solid #ddd;';
             const th = 'background:#f2f2f2;font-weight:bold;' + cell;
-            let html = '<div style="max-width:640px;margin:0 auto;">';
+            let html = '<div style="width:100%;margin:0 auto;">';
             html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;"><thead><tr>';
             html += `<th style="${th}width:50px;text-align:right;">Rang</th>`;
             html += `<th style="${th}text-align:left;">Name</th>`;
@@ -1942,10 +2110,16 @@ function updateRanking() {
                 heading.textContent = `Monatswertung — ${monatName} ${ref.yyyy}`;
             }
 
+            // Daten für den nativen PDF-Export bereitstellen
+            window.__monatsRender = {
+                players, monthDates, monthHasAnyData,
+                headingText: `Monatswertung — ${monatName} ${ref.yyyy}`,
+                monatName, ref
+            };
+
             const cell = 'padding:6px 10px;border:1px solid #ddd;';
             const th = 'background:#f2f2f2;font-weight:bold;' + cell;
-            const maxWidth = monthDates.length === 3 ? 760 : 640;
-            let html = `<div style="max-width:${maxWidth}px;margin:0 auto;">`;
+            let html = '<div style="width:100%;margin:0 auto;">';
             html += '<table style="border-collapse:collapse;width:100%;font-size:14px;font-family:Arial,sans-serif;"><thead><tr>';
             html += `<th style="${th}width:50px;text-align:right;">Rang</th>`;
             html += `<th style="${th}text-align:left;">Name</th>`;
@@ -1980,94 +2154,136 @@ function updateRanking() {
             content.innerHTML = html;
         }
 
-        async function exportPortraitPdf(modalId, contentId, headingId, filename) {
-            const modal = document.getElementById(modalId);
-            const content = document.getElementById(contentId);
-            if (!modal || !content) return;
-            const table = content.querySelector('table');
-            if (!table) { alert('Keine Tabelle vorhanden.'); return; }
-            if (!window.html2canvas || !window.jspdf) {
-                alert('PDF-Bibliotheken nicht geladen — bitte Internetverbindung prüfen.');
-                return;
+        // Generischer nativer Portrait-Tabellen-Export (feste mm-Spaltenbreiten, echter Text, keine Bild-Skalierung).
+        // cols: [{ header, w, align:'left'|'right', headerFill?[r,g,b], fill?[r,g,b], render:(row)=>({text,color?,bold?,size?,fill?}) }]
+        async function drawNativePortraitTable(cols, rows, headingText, filename) {
+            if (!window.jspdf) { alert('PDF-Bibliothek nicht geladen — bitte Internetverbindung prüfen.'); return; }
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = 210, pageH = 297, margin = 12;
+
+            // ---------- Kopf ----------
+            const clubName = '1. Sintherner Skatclub';
+            const logoData = window.SKAT_LOGO_DATA || null;
+            let logoRatio = 45 / 44;
+            if (logoData) {
+                try {
+                    const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = logoData; });
+                    logoRatio = im.naturalWidth / im.naturalHeight;
+                } catch (e) { console.warn('Logo-Maße:', e); }
             }
-            try {
-                const canvas = await window.html2canvas(table, { scale: 2, backgroundColor: '#ffffff', logging: false });
-                const imgData = canvas.toDataURL('image/jpeg', 0.92);
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                const pageW = 210;
-                const pageH = 297;
-                const marginLeft = 20;
-                const marginRight = 8;
-                const marginTop = 8;
-                const marginBottom = 8;
-                const titleH = 14;
-                const availW = pageW - marginLeft - marginRight;
-                const availH = pageH - marginTop - marginBottom - titleH;
-                const heading = document.getElementById(headingId)?.textContent || '';
-                const clubName = '1. Sintherner Skatclub';
-                const logoData = window.SKAT_LOGO_DATA || null;
-                let logoRatio = 45 / 44;
-                if (logoData) {
-                    try {
-                        const logoImg = await new Promise((resolve, reject) => {
-                            const im = new Image();
-                            im.onload = () => resolve(im);
-                            im.onerror = reject;
-                            im.src = logoData;
-                        });
-                        logoRatio = logoImg.naturalWidth / logoImg.naturalHeight;
-                    } catch (e) {
-                        console.warn('Logo-Maße konnten nicht ermittelt werden:', e);
-                    }
-                }
-                const logoH = 11;
-                const logoW = logoH * logoRatio;
-                if (logoData) {
-                    pdf.addImage(logoData, 'PNG', marginLeft, marginTop, logoW, logoH);
-                }
-                pdf.setFontSize(13);
-                pdf.setFont(undefined, 'bold');
-                pdf.text(clubName, marginLeft + (logoData ? logoW + 3 : 0), marginTop + 8);
-                pdf.setFontSize(14);
-                pdf.text(heading, pageW - marginRight, marginTop + 8, { align: 'right' });
-                pdf.setFont(undefined, 'normal');
-                const imgRatio = canvas.width / canvas.height;
-                let drawW = availW;
-                let drawH = drawW / imgRatio;
-                if (drawH > availH) {
-                    drawH = availH;
-                    drawW = drawH * imgRatio;
-                }
-                const x = marginLeft;
-                const y = marginTop + titleH + 2;
-                pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
-                pdf.save(filename);
-            } catch (err) {
-                console.error(err);
-                alert('PDF-Export fehlgeschlagen: ' + err.message);
+            const logoH = 10, logoW = logoH * logoRatio;
+            if (logoData) pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(14); pdf.setFont(undefined, 'bold');
+            pdf.text(clubName, margin + (logoData ? logoW + 3 : 0), margin + 7);
+            pdf.setFontSize(12);
+            pdf.text(headingText || '', pageW / 2, margin + 16, { align: 'center' });
+            pdf.setFont(undefined, 'normal');
+
+            // ---------- Layout ----------
+            const totalW = cols.reduce((s, c) => s + c.w, 0);
+            const startX = Math.max(margin, (pageW - totalW) / 2);
+            let cx = startX; cols.forEach(c => { c.x = cx; cx += c.w; });
+            const pad = 1.5;
+            const yTop = margin + 22;
+            const bottomLimit = pageH - margin;
+            const headerH = 9;
+            const rowH = Math.min(9, Math.max(4.5, (bottomLimit - yTop - headerH) / Math.max(rows.length, 1)));
+            const tableBottom = yTop + headerH + rowH * rows.length;
+
+            function cellText(str, col, rowY, h, opts) {
+                opts = opts || {};
+                if (str == null || str === '') return;
+                str = String(str);
+                pdf.setFontSize(opts.size || 9);
+                pdf.setFont(undefined, opts.bold ? 'bold' : 'normal');
+                const tc = opts.color || [0, 0, 0];
+                pdf.setTextColor(tc[0], tc[1], tc[2]);
+                const align = col.align;
+                const tx = align === 'left' ? col.x + pad : col.x + col.w - pad;
+                pdf.text(str, tx, rowY + h / 2, { align, baseline: 'middle' });
+                pdf.setTextColor(0, 0, 0);
             }
+
+            // ---------- Kopfzeile ----------
+            pdf.setFillColor(242, 242, 242);
+            pdf.rect(startX, yTop, totalW, headerH, 'F');
+            cols.forEach(c => { if (c.headerFill) { pdf.setFillColor(c.headerFill[0], c.headerFill[1], c.headerFill[2]); pdf.rect(c.x, yTop, c.w, headerH, 'F'); } });
+            cols.forEach(c => cellText(c.header, c, yTop, headerH, { bold: true }));
+
+            // ---------- Datenzeilen ----------
+            rows.forEach((row, idx) => {
+                const rowY = yTop + headerH + idx * rowH;
+                const zebra = idx % 2 === 1 ? [245, 245, 245] : [255, 255, 255];
+                pdf.setFillColor(zebra[0], zebra[1], zebra[2]);
+                pdf.rect(startX, rowY, totalW, rowH, 'F');
+                const infos = cols.map(c => c.render ? c.render(row) : { text: '' });
+                cols.forEach((c, ci) => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                cols.forEach((c, ci) => { const inf = infos[ci]; if (inf && inf.fill) { pdf.setFillColor(inf.fill[0], inf.fill[1], inf.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                cols.forEach((c, ci) => { const inf = infos[ci] || {}; cellText(inf.text, c, rowY, rowH, { bold: inf.bold, color: inf.color, size: inf.size }); });
+            });
+
+            // ---------- Gitterlinien ----------
+            pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.1);
+            let vx = startX;
+            pdf.line(vx, yTop, vx, tableBottom);
+            cols.forEach(c => { vx += c.w; pdf.line(vx, yTop, vx, tableBottom); });
+            for (let r = 0; r <= rows.length; r++) {
+                const yy = yTop + headerH + r * rowH;
+                pdf.line(startX, yy, startX + totalW, yy);
+            }
+
+            pdf.save(filename);
+        }
+
+        // Farbe für Serie-/Tageswerte: negativ = weiß auf rot, fehlend (Default) = rot.
+        function wertStil(v, missing) {
+            if (v < 0) return { color: [255, 255, 255], fill: [211, 47, 47] };
+            if (missing) return { color: [211, 47, 47] };
+            return {};
         }
 
         window.exportTageswertungPdf = function() {
-            if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
-            const sel = document.getElementById('tageswertungSelect');
-            const idx = Number(sel.value);
-            const d = tagesData.dates[idx];
-            const stNr = String(idx + 1).padStart(2, '0');
-            const filename = d.extra
-                ? `Tagessieger ${d.name} - ${d.dd}.${d.mm}.${d.yyyy}.pdf`
-                : `Tagessieger ${stNr}. Spieltag - ${d.dd}.${d.mm}.${d.yyyy}.pdf`;
-            return exportPortraitPdf('tageswertungModal', 'tageswertungContent', 'tageswertungHeading', filename);
+            const data = window.__tagesRender;
+            if (!data) { alert('Daten noch nicht geladen.'); return; }
+            const { players, dayHasData, headingText, date, stNumber } = data;
+            const dash = { text: '-', color: [187, 187, 187] };
+            const cols = [
+                { header: 'Rang', w: 20, align: 'right', render: p => ({ text: p.displayRank }) },
+                { header: 'Name', w: 75, align: 'left', render: p => ({ text: p.name }) },
+                { header: 'Serie 1', w: 28, align: 'right', render: p => dayHasData ? Object.assign({ text: p.s1, bold: true }, wertStil(p.s1, !p.has1)) : dash },
+                { header: 'Serie 2', w: 28, align: 'right', render: p => dayHasData ? Object.assign({ text: p.s2, bold: true }, wertStil(p.s2, !p.has2)) : dash },
+                { header: 'Gesamt', w: 28, align: 'right', headerFill: [227, 242, 253], fill: [227, 242, 253], render: p => dayHasData ? { text: p.sum, bold: true } : dash }
+            ];
+            const filename = date.extra
+                ? `Tagessieger ${date.name} - ${date.dd}.${date.mm}.${date.yyyy}.pdf`
+                : `Tagessieger ${String(stNumber).padStart(2, '0')}. Spieltag - ${date.dd}.${date.mm}.${date.yyyy}.pdf`;
+            return drawNativePortraitTable(cols, players, headingText, filename);
         };
+
         window.exportMonatswertungPdf = function() {
-            if (!monatsData) { alert('Daten noch nicht geladen.'); return; }
-            const sel = document.getElementById('monatswertungSelect');
-            const idx = Number(sel.value);
-            const ref = monatsData.dates[idx];
-            const monatName = MONAT_NAMEN[parseInt(ref.mm, 10) - 1] || ref.mm;
+            const data = window.__monatsRender;
+            if (!data) { alert('Daten noch nicht geladen.'); return; }
+            const { players, monthDates, monthHasAnyData, headingText, monatName } = data;
+            const dash = { text: '-', color: [187, 187, 187] };
+            const cols = [
+                { header: 'Rang', w: 18, align: 'right', render: p => ({ text: p.displayRank }) },
+                { header: 'Name', w: 60, align: 'left', render: p => ({ text: p.name }) }
+            ];
+            monthDates.forEach((d, i) => {
+                cols.push({
+                    header: `${d.dd}.${d.mm}.`, w: 26, align: 'right',
+                    render: p => {
+                        const dv = p.dayValues[i];
+                        if (!monthHasAnyData || dv.empty) return dash;
+                        return Object.assign({ text: dv.value, bold: true }, wertStil(dv.value, dv.missing));
+                    }
+                });
+            });
+            cols.push({ header: 'Gesamt', w: 26, align: 'right', headerFill: [227, 242, 253], fill: [227, 242, 253], render: p => monthHasAnyData ? { text: p.total, bold: true } : dash });
             const filename = `Monatssieger ${monatName}.pdf`;
-            return exportPortraitPdf('monatswertungModal', 'monatswertungContent', 'monatswertungHeading', filename);
+            return drawNativePortraitTable(cols, players, headingText, filename);
         };
 
         // Excel-Sheet-Namen bereinigen: Excel verbietet : \ / ? * [ ] und max. 31 Zeichen
