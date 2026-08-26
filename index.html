@@ -164,6 +164,7 @@
                 <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
                 <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
                 <button onclick="loadMitspielerFromFirebase(this)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;background:#00897b;color:white;border:none;border-radius:4px;cursor:pointer;">Aus Firebase laden</button>
+                <button onclick="auslosungStarten()" style="font-size:11px;padding:3px 6px;margin:0;width:auto;background:#6a1b9a;color:white;border:none;border-radius:4px;cursor:pointer;">Auslosung</button>
             </div>
             <div class="checkbox-list" id="playerCheckboxes"></div>
             
@@ -498,6 +499,24 @@ function loadPlayers(text) {
                 cb.checked = checked && !guests.has(p) && !hidden;
             });
             updateSelectedPlayers();
+        }
+
+        // Markierte Spieler an die Turnierseite übergeben und dorthin wechseln.
+        function auslosungStarten() {
+            const marked = allPlayers.filter(p => {
+                const cb = document.getElementById('cb_' + p);
+                return cb && cb.checked;
+            });
+            if (marked.length === 0) {
+                alert('Keine Spieler markiert – bitte zuerst Mitspieler auswählen.');
+                return;
+            }
+            try {
+                localStorage.setItem('turnier_teilnehmer', marked.join('\n'));
+            } catch (e) {
+                console.warn('Teilnehmer konnten nicht übergeben werden:', e);
+            }
+            window.location.href = 'turnier.html';
         }
 
         // Namens-Schlüssel für den Abgleich Firestore <-> Haupt-Spielerliste.
@@ -1319,9 +1338,9 @@ function updateRanking() {
                 const cols = [];
                 cols.push({ key: 'rank', w: 6, align: 'right' });
                 cols.push({ key: 'name', w: 35, align: 'left' });
-                dates.forEach((d, i) => cols.push({ key: 'st', iso: d.iso, header: 'ST ' + (i + 1), sub: d.label, w: 8.2, align: 'right' }));
+                dates.forEach((d, i) => cols.push({ key: 'st', iso: d.iso, header: 'ST ' + (i + 1), sub: d.label, w: 8.2, align: 'right', subSize: 5 }));
                 cols.push({ key: 'total', w: 15, align: 'right', fill: [227, 242, 253], header: 'Gesamt', sub: 'beste 18 ST *', subSize: 5 });
-                cols.push({ key: 'streich', w: 13, align: 'right', fill: [255, 243, 224], header: 'Streich' });
+                cols.push({ key: 'streich', w: 13, align: 'right', fill: [255, 243, 224], header: 'Streich', sub: 'nächste 2 ST', subSize: 5 });
                 cols.push({ key: 'form', w: 17, align: 'right', fill: [232, 245, 233], header: 'Form', sub: 'Ø letzte 8 ST', subSize: 5 });
                 const totalW = cols.reduce((s, c) => s + c.w, 0);
                 const startX = Math.max(margin / 2, (pageW - totalW) / 2);
@@ -1640,12 +1659,14 @@ function updateRanking() {
                     for (const p of pairs) {
                         if (!dropped.has(p.iso)) total += p.value;
                     }
-                    // Nächste 2 Streichkandidaten: alle 24 Datumsspalten betrachten,
-                    // fehlende Einträge ('-') als 0 zählen, Negative ausschließen,
-                    // bereits gestrichene überspringen, dann die nächsten 2 niedrigsten.
-                    const streichPool = dates
-                        .map(d => byDate[d.iso] != null ? byDate[d.iso] : 0)
-                        .filter(v => v >= 0)
+                    // Nächste 2 Streichkandidaten im "beste 18"-Fenster:
+                    // vorhandene (nicht-negative) Ergebnisse + so viele 0-Plätze, wie bis 18 noch fehlen
+                    // (z. B. 17 gespielt → 1 freier 0-Platz), dann die zwei niedrigsten
+                    // (bereits gestrichene übersprungen). Negative zählen immer und werden nie gestrichen.
+                    const nonNegValues = pairs.filter(p => p.value >= 0).map(p => p.value);
+                    const emptySlots = Math.max(0, KEEP_BEST - pairs.length);
+                    const streichPool = nonNegValues
+                        .concat(new Array(emptySlots).fill(0))
                         .sort((a, b) => a - b);
                     const streich = streichPool.slice(dropped.size, dropped.size + 2);
                     // Tie-Break: alle tatsächlich gespielten Spieltagergebnisse (S1+S2), absteigend.
@@ -1757,7 +1778,7 @@ function updateRanking() {
                 }
 
                 const cell = 'padding:8px 2px;border:1px solid #ddd;';
-                const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;' + cell;
+                const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;line-height:14px;' + cell;
                 const stickyRank = 'position:sticky;left:0;background:white;z-index:1;';
                 const stickyName = 'position:sticky;left:30px;background:white;z-index:1;';
                 const stickyRankTh = 'position:sticky;left:0;z-index:2;';
@@ -1768,10 +1789,10 @@ function updateRanking() {
                 html += `<th style="${th}${stickyRankTh}width:30px;text-align:right;">Rg</th>`;
                 html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
                 dates.forEach((d, i) => {
-                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:26px;min-width:26px;max-width:26px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:9px;">${d.label}</span></th>`;
+                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:26px;min-width:26px;max-width:26px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:8px;">${d.label}</span></th>`;
                 });
                 html += `<th style="${th}text-align:right;background:#e3f2fd;width:52px;min-width:52px;max-width:52px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste 18 ST&nbsp;<span style="color:#d32f2f;">*</span></span></th>`;
-                html += `<th style="${th}text-align:right;background:#fff3e0;width:52px;min-width:52px;max-width:52px;">Streich</th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;width:52px;min-width:52px;max-width:52px;">Streich<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">nächste 2 ST</span></th>`;
                 html += `<th style="${th}text-align:right;background:#e8f5e9;width:72px;min-width:72px;max-width:72px;">Form<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">Ø letzte 8 ST</span></th>`;
                 html += '</tr></thead><tbody>';
 
