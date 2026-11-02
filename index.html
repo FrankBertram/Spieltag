@@ -146,6 +146,10 @@
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
                 Monat
             </button>
+            <button onclick="showOnlineWertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><rect x="1.5" y="2.5" width="11" height="7" rx="1"/><line x1="5" y1="12" x2="9" y2="12"/><line x1="7" y1="9.5" x2="7" y2="12"/></svg>
+                Online
+            </button>
             <button onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
                 Mitspieler
@@ -154,12 +158,17 @@
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
                 E-Mail
             </button>
+            <button onclick="sendOnlineEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
+                E-Mail Online
+            </button>
         </div>
     </div>
     
     <div class="container">
         <div class="left">
-            <h3>Mitspieler wählen</h3>
+            <h3 style="margin-bottom:2px;">Mitspieler wählen: <span id="mitspielerAnzahl">0</span></h3>
+            <div id="tischAnzahl" style="font-size:13px;color:#555;margin-bottom:6px;"></div>
             <div style="display:flex;gap:5px;margin-bottom:5px;">
                 <button onclick="alleWaehlen(true)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Alle</button>
                 <button onclick="alleWaehlen(false)" style="font-size:11px;padding:3px 6px;margin:0;width:auto;">Keine</button>
@@ -220,6 +229,10 @@
 
             <button id="saveSetzlisteBtn" onclick="saveSetzlisteSerie2(this)" style="display:none; background:#1565c0;">
                 Setzliste für Serie 2 speichern
+            </button>
+
+            <button id="showTischverteilungBtn" onclick="showTischverteilung()" style="display:none; background:#6a1b9a;">
+                Tischverteilung Serie 2 anzeigen
             </button>
 
             <p id="message"></p>
@@ -409,11 +422,38 @@
             }
         }
 
+        // Spielerliste laden: bevorzugt die Preisskat-Mitspieler aus Firebase (mitspieler/Liste), alphabetisch.
+        // Nur wenn Firebase nicht erreichbar oder leer ist, Rückfall auf Mitspieler.txt.
+        async function loadStartPlayers() {
+            // Firebase-Modul wird nach diesem Skript geladen – kurz darauf warten
+            for (let i = 0; i < 50 && typeof window.fetchFirebaseMitspielerNames !== 'function'; i++) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            try {
+                if (typeof window.fetchFirebaseMitspielerNames === 'function') {
+                    const names = await window.fetchFirebaseMitspielerNames();
+                    if (names.length) { loadPlayers(names.join('\n')); return true; }
+                }
+            } catch (e) {
+                console.warn('Mitspieler aus Firebase konnten nicht geladen werden:', e);
+            }
+            try {
+                const r = await fetch('Mitspieler.txt');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const names = (await r.text()).split('\n').map(n => n.trim()).filter(n => n)
+                    .sort((a, b) => a.localeCompare(b, 'de'));
+                loadPlayers(names.join('\n'));
+                return true;
+            } catch (e) {
+                console.warn('Mitspieler.txt konnte nicht geladen werden:', e);
+                return false;
+            }
+        }
+
         if (!restoreState()) {
-            fetch('Mitspieler.txt')
-                .then(r => r.ok ? r.text() : Promise.reject())
-                .then(text => loadPlayers(text))
-                .catch(() => console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.'));
+            loadStartPlayers().then(ok => {
+                if (!ok) console.log('Automatisch laden fehlgeschlagen – bitte manuell hochladen.');
+            });
         }
 
 
@@ -488,6 +528,38 @@ function loadPlayers(text) {
             div.appendChild(cb);
             div.appendChild(label);
             container.appendChild(div);
+        }
+
+        // Auswahlliste alphabetisch sortieren, Gäste ans Ende.
+        function sortPlayerList() {
+            const cmp = (a, b) => a.localeCompare(b, 'de');
+            allPlayers = allPlayers.filter(p => !guests.has(p)).sort(cmp)
+                .concat(allPlayers.filter(p => guests.has(p)).sort(cmp));
+            const container = document.getElementById('playerCheckboxes');
+            allPlayers.forEach(p => {
+                const cb = document.getElementById('cb_' + p);
+                const item = cb && cb.closest('.checkbox-item');
+                if (item) container.appendChild(item);
+            });
+        }
+
+        // Namen entfernen, die nicht in der Liste stehen – Gäste und Spieler mit Ergebnissen bleiben.
+        function removePlayersNotIn(names) {
+            const keep = new Set(names.map(n => n.toLowerCase()));
+            let removed = 0;
+            allPlayers.slice().forEach(p => {
+                if (keep.has(p.toLowerCase()) || guests.has(p) || preisskatTempPlayers.has(p)) return;
+                const r = results[p];
+                if (r && (r.res1 !== '' || r.res2 !== '')) return;
+                const cb = document.getElementById('cb_' + p);
+                const item = cb && cb.closest('.checkbox-item');
+                if (item) item.remove();
+                allPlayers = allPlayers.filter(x => x !== p);
+                delete results[p];
+                delete imported[p];
+                removed++;
+            });
+            return removed;
         }
 
         function alleWaehlen(checked) {
@@ -747,6 +819,7 @@ function loadPlayers(text) {
             // Setzliste-Button: sichtbar, sobald alle Serie-1-Ergebnisse vorliegen
             const setzBtn = document.getElementById('saveSetzlisteBtn');
             if (setzBtn) setzBtn.style.display = (total > 0 && done1 === total) ? 'block' : 'none';
+            updateTischverteilungBtn();
             if (currentRound === 1) {
                 const allHaveRes1 = done1 === total;
                 document.getElementById('startRound2').style.display = allHaveRes1 ? 'block' : 'none';
@@ -875,6 +948,47 @@ function getTableSizes(n) {
     return sizes;
 }
 
+// Dialog: Welche Serie-1-Teilnehmer spielen auch Serie 2? Alle sind vorausgewählt.
+// Liefert ein Set der Namen oder null bei Abbruch.
+let setzlisteAuswahlResolve = null;
+function askSetzlisteTeilnehmer(namen) {
+    const liste = document.getElementById('setzlisteAuswahlListe');
+    liste.innerHTML = '';
+    namen.forEach(name => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.value = name;
+        cb.style.cssText = 'width:auto;margin:0;';
+        cb.addEventListener('change', updateSetzlisteAuswahlInfo);
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(name));
+        liste.appendChild(label);
+    });
+    updateSetzlisteAuswahlInfo();
+    document.getElementById('setzlisteAuswahlModal').style.display = 'flex';
+    return new Promise(resolve => { setzlisteAuswahlResolve = resolve; });
+}
+
+function updateSetzlisteAuswahlInfo() {
+    const cbs = [...document.querySelectorAll('#setzlisteAuswahlListe input[type=checkbox]')];
+    const n = cbs.filter(cb => cb.checked).length;
+    const fehlt = cbs.length - n;
+    document.getElementById('setzlisteAuswahlInfo').textContent =
+        `${n} von ${cbs.length} Spielern in Serie 2` + (fehlt ? ` (${fehlt} nicht dabei)` : '');
+}
+
+window.resolveSetzlisteAuswahl = function(ok) {
+    document.getElementById('setzlisteAuswahlModal').style.display = 'none';
+    const auswahl = ok
+        ? new Set([...document.querySelectorAll('#setzlisteAuswahlListe input[type=checkbox]:checked')].map(cb => cb.value))
+        : null;
+    if (setzlisteAuswahlResolve) setzlisteAuswahlResolve(auswahl);
+    setzlisteAuswahlResolve = null;
+};
+
 // Serie-1-Ergebnis als Setzliste (Tischeinteilung) für Serie 2 in Firestore speichern.
 // Rangfolge = Serie-1-Punkte absteigend, Gruppierung via getTableSizes (4er bevorzugt).
 window.saveSetzlisteSerie2 = async function(btn) {
@@ -882,17 +996,21 @@ window.saveSetzlisteSerie2 = async function(btn) {
         alert('App ist noch nicht bereit – bitte einen Moment warten und erneut versuchen.');
         return;
     }
-    const list = selectedPlayers.map(name => ({
+    const alle = selectedPlayers.map(name => ({
         name,
         res1: results[name] ? results[name].res1 : ''
     }));
+    // Serie-1-Rangfolge (Punkte absteigend), stabil nach Name bei Gleichstand
+    alle.sort((a, b) => ((b.res1 || 0) - (a.res1 || 0)) || a.name.localeCompare(b.name, 'de'));
+    // Abfrage, wer in Serie 2 noch mitspielt (z. B. Ausfall wegen Krankheit)
+    const teilnehmer = await askSetzlisteTeilnehmer(alle.map(p => p.name).sort((a, b) => a.localeCompare(b, 'de')));
+    if (!teilnehmer) return;
+    const list = alle.filter(p => teilnehmer.has(p.name));
     if (list.length < 3) { alert('Zu wenige Spieler für eine Setzliste (mindestens 3).'); return; }
     const missing = list.filter(p => p.res1 === '' || p.res1 == null);
     if (missing.length) {
         if (!confirm(missing.length + ' Spieler ohne Serie-1-Ergebnis. Fehlende Werte als 0 werten und trotzdem speichern?')) return;
     }
-    // Serie-1-Rangfolge (Punkte absteigend), stabil nach Name bei Gleichstand
-    list.sort((a, b) => ((b.res1 || 0) - (a.res1 || 0)) || a.name.localeCompare(b.name, 'de'));
     const sizes = getTableSizes(list.length);
     const tische = [];
     let idx = 0;
@@ -901,17 +1019,100 @@ window.saveSetzlisteSerie2 = async function(btn) {
         for (let i = 0; i < size && idx < list.length; i++, idx++) spieler.push(list[idx].name);
         tische.push({ tisch: t + 1, groesse: size, spieler });
     });
-    await window.saveTurnierauslosung({
+    const ok = await window.saveTurnierauslosung({
         serie: '2',
         spielerAnzahl: list.length,
         tischAnzahl: tische.length,
         tische
     }, btn);
+    if (ok) {
+        // Gespeicherte Setzliste für "Tischverteilung anzeigen" merken (gilt nur für heute)
+        try {
+            const punkte = {};
+            list.forEach(p => { punkte[p.name] = p.res1 === '' || p.res1 == null ? 0 : p.res1; });
+            localStorage.setItem('skat_setzliste2', JSON.stringify({ datum: new Date().toISOString().slice(0, 10), tische, punkte }));
+        } catch (e) { console.warn('Setzliste konnte nicht lokal gemerkt werden:', e); }
+        updateTischverteilungBtn();
+    }
+};
+
+function loadGespeicherteSetzliste() {
+    try {
+        const s = JSON.parse(localStorage.getItem('skat_setzliste2') || 'null');
+        return (s && s.datum === new Date().toISOString().slice(0, 10) && Array.isArray(s.tische)) ? s : null;
+    } catch (e) { return null; }
+}
+
+function updateTischverteilungBtn() {
+    const b = document.getElementById('showTischverteilungBtn');
+    if (b) b.style.display = loadGespeicherteSetzliste() ? 'block' : 'none';
+}
+
+// Tischverteilung Serie 2 als Sitzplan anzeigen (Darstellung wie in der Turnier-Auslosung):
+// Platz 1 oben links, dann im Uhrzeigersinn.
+function escapeTv(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function tvSeatNameHtml(full) {
+    const parts = String(full).split(',').map(x => x.trim());
+    if (parts.length === 2 && parts[0] && parts[1]) {
+        return `<span class="s-vorname">${escapeTv(parts[1])}</span><span class="s-nachname">${escapeTv(parts[0])}</span>`;
+    }
+    return `<span class="s-nachname">${escapeTv(full)}</span>`;
+}
+window.showTischverteilung = function() {
+    const s = loadGespeicherteSetzliste();
+    if (!s) { alert('Bitte zuerst „Setzliste für Serie 2 speichern“.'); return; }
+    const SEATS = ['s-tl', 's-tr', 's-br', 's-bl'];
+    let html = '';
+    s.tische.forEach((t, ti) => {
+        let seats = '';
+        for (let i = 0; i < 4; i++) {
+            const name = t.spieler[i];
+            // Serie-1-Punkte: aktueller Stand, sonst der beim Speichern gemerkte Wert
+            const live = (typeof results !== 'undefined' && results[name]) ? results[name].res1 : '';
+            const pts = live !== '' && live != null ? live : (s.punkte ? s.punkte[name] : null);
+            const ptsHtml = pts != null ? `<span class="s-pts">${escapeTv(pts)} P.</span>` : '';
+            seats += name
+                ? `<div class="seat ${SEATS[i]}"><span class="s-no">${i + 1}</span><span class="s-name">${tvSeatNameHtml(name)}${ptsHtml}</span></div>`
+                : `<div class="seat ${SEATS[i]} empty"><span>frei</span></div>`;
+        }
+        html += `<div class="table-card" style="animation-delay:${ti * 0.1}s">
+            <div class="table-head">Tisch ${t.tisch}<span class="size-tag">${t.groesse}er</span></div>
+            <div class="seatmap">${seats}<div class="seat-table"><span>Tisch</span><span class="st-num">${t.tisch}</span></div></div>
+        </div>`;
+    });
+    document.getElementById('tischverteilungGrid').innerHTML = html;
+    const n = s.tische.reduce((a, t) => a + t.spieler.length, 0);
+    document.getElementById('tischverteilungInfo').textContent = `${n} Spieler · ${s.tische.length} Tische`;
+    const modal = document.getElementById('tischverteilungModal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+};
+window.closeTischverteilung = function() {
+    document.getElementById('tischverteilungModal').style.display = 'none';
+    document.body.style.overflow = '';
 };
 
 
 
 function updateRanking() {
+    // Anzahl der gewählten Mitspieler in der Überschrift "Mitspieler wählen: ##"
+    const anzahlEl = document.getElementById('mitspielerAnzahl');
+    if (anzahlEl) anzahlEl.textContent = selectedPlayers.length;
+    // Darunter: Tischaufteilung "## 4er Tische / ## 3er Tische"
+    const tischEl = document.getElementById('tischAnzahl');
+    if (tischEl) {
+        const n = selectedPlayers.length;
+        const sz = n >= 3 ? getTableSizes(n) : [];
+        const t4 = sz.filter(s => s === 4).length;
+        const t3 = sz.filter(s => s === 3).length;
+        const ok = n >= 3 && sz.every(s => s === 3 || s === 4);
+        tischEl.textContent = n === 0 ? '' : (ok
+            ? `${t4} 4er Tische / ${t3} 3er Tische`
+            : `${n} Spieler – nicht in 4er/3er-Tische aufteilbar`);
+        tischEl.style.color = ok || n === 0 ? '#555' : '#d32f2f';
+    }
     const tbody = document.getElementById('rankingTable').querySelector('tbody');
     tbody.innerHTML = '';
 
@@ -995,23 +1196,22 @@ function updateRanking() {
         function neustart() {
             if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
             localStorage.removeItem('skat_state');
+            localStorage.removeItem('skat_setzliste2');
+            updateTischverteilungBtn();
             currentRound = 1;
             editingPlayer = null;
             editingSeries = null;
             preisskatTempPlayers = new Set();
             // Liste sofort leeren (entfernt Gäste, importierte und temporäre Spieler) …
             loadPlayers('');
-            // … und frisch aus Mitspieler.txt neu einlesen.
-            fetch('Mitspieler.txt')
-                .then(r => r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)))
-                .then(text => loadPlayers(text))
-                .catch(err => {
-                    // Bewusst NICHT die alte Liste wiederherstellen – sie bleibt leer.
-                    console.warn('Mitspieler.txt konnte nicht geladen werden:', err);
-                    loadPlayers('');
-                    const msg = document.getElementById('message');
-                    if (msg) msg.textContent = 'Mitspieler.txt konnte nicht geladen werden – Liste ist leer. Bitte über HTTP öffnen oder „Aus Firebase laden" nutzen.';
-                });
+            // … und frisch aus Firebase (Rückfall: Mitspieler.txt) neu einlesen.
+            loadStartPlayers().then(ok => {
+                if (ok) return;
+                // Bewusst NICHT die alte Liste wiederherstellen – sie bleibt leer.
+                loadPlayers('');
+                const msg = document.getElementById('message');
+                if (msg) msg.textContent = 'Mitspieler konnten weder aus Firebase noch aus Mitspieler.txt geladen werden – Liste ist leer. Bitte „Aus Firebase laden" nutzen.';
+            });
         }
 
         function exportToCSV() {
@@ -1213,6 +1413,69 @@ function updateRanking() {
         <div id="mitspielerVerwContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
     </div>
 
+    <div id="onlineModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="onlineHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Online-Wertung</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:8px;">
+                <button id="onlineTabErfassung" onclick="showOnlineErfassung()" style="background:#00897b;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Erfassung</button>
+                <button id="onlineTabGesamt" onclick="showOnlineGesamt()" style="background:#6a1b9a;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Gesamtstand</button>
+                <button id="onlinePdfBtn" onclick="exportOnlineGesamtPdf()" style="display:none;background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="closeOnline()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="onlineContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
+    <div id="tischverteilungModal" style="display:none;position:fixed;inset:0;background:#f0f2f5;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <style>
+            /* Sitzplan-Darstellung wie in turnier.html (Turnier-Auslosung) */
+            #tischverteilungModal .tables-grid { display:grid; grid-template-columns:1fr; gap:0.8rem; max-width:1100px; margin:0 auto; }
+            @media (min-width:560px) { #tischverteilungModal .tables-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+            @media (min-width:860px) { #tischverteilungModal .tables-grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+            #tischverteilungModal .table-card { background:white; border:1px solid #d1d5db; border-radius:14px; padding:0.5rem 0.4rem 0.6rem; animation:tvReveal 0.4s ease both; }
+            #tischverteilungModal .table-head { font-size:0.8rem; font-weight:800; color:#6d28d9; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.45rem; display:flex; align-items:center; justify-content:center; gap:0.35rem; }
+            #tischverteilungModal .size-tag { font-size:0.6rem; font-weight:700; padding:1px 6px; border-radius:999px; background:#e5e7eb; color:#6b7280; }
+            #tischverteilungModal .seatmap { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:auto 1fr auto; justify-items:center; gap:0.3rem 0.35rem; margin-top:0.3rem; }
+            #tischverteilungModal .seat { position:relative; display:flex; align-items:center; justify-content:center; width:100%; min-height:50px; padding:0.9rem 0.5rem 0.4rem; box-sizing:border-box; font-weight:700; line-height:1.15; text-align:center; color:#fff8ef; text-shadow:0 1px 1px rgba(0,0,0,0.35); background:linear-gradient(180deg, #b8814f 0%, #905c2c 100%); border:1px solid #6b4320; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.28); overflow-wrap:anywhere; }
+            #tischverteilungModal .seat > span { position:relative; z-index:1; }
+            #tischverteilungModal .seat::before { content:''; position:absolute; background:linear-gradient(180deg, #a06f43 0%, #7d4e24 100%); border:1px solid #6b4320; box-shadow:inset 0 1px 0 rgba(255,255,255,0.2); }
+            #tischverteilungModal .seat .s-no { position:absolute; left:6px; top:6px; width:22px; height:22px; border-radius:50%; background:#fff; color:#2a2a2a; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:800; text-shadow:none; box-shadow:0 1px 2px rgba(0,0,0,0.3); z-index:2; }
+            #tischverteilungModal .seat .s-name { display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.08; gap:1px; min-width:0; }
+            #tischverteilungModal .seat .s-vorname { font-size:1.0rem; font-weight:700; opacity:0.95; white-space:nowrap; }
+            #tischverteilungModal .seat .s-nachname { font-size:1.15rem; font-weight:800; white-space:nowrap; }
+            #tischverteilungModal .seat .s-pts { margin-top:3px; padding:1px 8px; border-radius:999px; background:rgba(255,255,255,0.9); color:#2a2a2a; font-size:0.85rem; font-weight:800; text-shadow:none; white-space:nowrap; }
+            #tischverteilungModal .seat.s-tl { grid-area:1 / 1 / 2 / 2; margin-top:9px; }
+            #tischverteilungModal .seat.s-tr { grid-area:1 / 2 / 2 / 3; margin-top:9px; }
+            #tischverteilungModal .seat.s-bl { grid-area:3 / 1 / 4 / 2; margin-bottom:9px; }
+            #tischverteilungModal .seat.s-br { grid-area:3 / 2 / 4 / 3; margin-bottom:9px; }
+            #tischverteilungModal .seat.s-tl::before, #tischverteilungModal .seat.s-tr::before { left:15%; right:15%; top:-8px; height:14px; border-bottom:none; border-radius:7px 7px 0 0; }
+            #tischverteilungModal .seat.s-bl::before, #tischverteilungModal .seat.s-br::before { left:15%; right:15%; bottom:-8px; height:14px; border-top:none; border-radius:0 0 7px 7px; }
+            #tischverteilungModal .seat.empty { color:#6b7280; font-weight:600; text-shadow:none; background:transparent; border-style:dashed; border-color:#d1d5db; box-shadow:none; }
+            #tischverteilungModal .seat.empty::before { background:transparent; border-style:dashed; border-color:#d1d5db; box-shadow:none; }
+            #tischverteilungModal .seat-table { grid-area:2 / 1 / 3 / 3; display:flex; flex-wrap:wrap; align-items:baseline; align-content:center; justify-content:center; gap:0.3rem; width:100%; height:100%; min-height:52px; padding:0.4rem; box-sizing:border-box; border-radius:10px; background:linear-gradient(180deg, #35855a 0%, #1c5233 100%); border:4px solid #8b5a2b; color:#fff; font-size:0.6rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; box-shadow:0 3px 8px rgba(0,0,0,0.22), inset 0 0 16px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.12); }
+            #tischverteilungModal .seat-table .st-num { font-size:1.3rem; line-height:1; letter-spacing:0; }
+            @keyframes tvReveal { 0% { transform:translateY(8px) scale(0.95); opacity:0; } 100% { transform:translateY(0) scale(1); opacity:1; } }
+        </style>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <div style="text-align:center;">
+                <h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.3px;">Tischverteilung Serie 2</h2>
+                <div id="tischverteilungInfo" style="font-size:13px;color:#6b7280;margin-top:2px;"></div>
+            </div>
+            <div style="justify-self:end;">
+                <button onclick="closeTischverteilung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="tischverteilungGrid" class="tables-grid" style="font-family:Arial,sans-serif;"></div>
+    </div>
+
     <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
         <div style="background:white;padding:20px;border-radius:8px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
             <h3 style="margin:0 0 10px 0;">Spieltag laden</h3>
@@ -1221,6 +1484,19 @@ function updateRanking() {
                 <button onclick="resolveImportMode('all')" style="background:#e53935;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Alle vorhandenen Einträge löschen</button>
                 <button onclick="resolveImportMode('merge')" style="background:#1976d2;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Nur betroffene Einträge überschreiben</button>
                 <button onclick="resolveImportMode('cancel')" style="background:#9e9e9e;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="setzlisteAuswahlModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:white;padding:20px;border-radius:8px;max-width:400px;width:90%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <h3 style="margin:0 0 10px 0;">Teilnehmer Serie 2</h3>
+            <p style="margin:0 0 10px 0;font-size:14px;">Spielen alle Teilnehmer von Serie 1 auch Serie 2? Wer nicht mehr mitspielt, bitte abhaken.</p>
+            <div id="setzlisteAuswahlListe" style="overflow:auto;border:1px solid #ddd;border-radius:4px;padding:6px;margin-bottom:8px;font-size:14px;"></div>
+            <p id="setzlisteAuswahlInfo" style="margin:0 0 12px 0;font-size:13px;color:#555;"></p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button onclick="resolveSetzlisteAuswahl(true)" style="background:#1565c0;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Setzliste speichern</button>
+                <button onclick="resolveSetzlisteAuswahl(false)" style="background:#9e9e9e;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -1281,7 +1557,7 @@ function updateRanking() {
         }
         function closeOverlay(id) {
             document.getElementById(id).style.display = 'none';
-            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal']
+            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal','onlineModal']
                 .some(m => {
                     const el = document.getElementById(m);
                     return el && el.style.display && el.style.display !== 'none';
@@ -2415,34 +2691,42 @@ function updateRanking() {
 
         // Alle in Firebase angelegten Mitspieler in die Auswahlliste laden (nicht-destruktiv:
         // bereits vorhandene Spieler/Ergebnisse bleiben erhalten, nur fehlende werden ergänzt).
+        // Namen aus 'mitspieler/Liste' mit Preisskat-Haken, alphabetisch. Wird auch beim Start und bei Neustart genutzt.
+        window.fetchFirebaseMitspielerNames = async function() {
+            const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+            const names = [];
+            if (snap.exists()) {
+                (snap.data().Mitspieler || []).forEach(e => {
+                    if (!e || typeof e !== 'object' || !isPreisskatTrue(e.preisskat)) return;
+                    const nm = (e.name || '').trim();
+                    if (nm) names.push(nm);
+                });
+            }
+            return names.sort((a, b) => a.localeCompare(b, 'de'));
+        };
+
+        // Auswahlliste mit Firebase abgleichen: fehlende Namen ergänzen, Namen ohne Firebase-Eintrag
+        // entfernen (außer Gästen und Spielern mit Ergebnissen), danach alphabetisch sortieren.
         window.loadMitspielerFromFirebase = async function(btn) {
             const origLabel = btn ? btn.textContent : '';
             if (btn) { btn.disabled = true; btn.textContent = 'Lade …'; }
             try {
-                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
-                const names = [];
-                if (snap.exists()) {
-                    (snap.data().Mitspieler || []).forEach(e => {
-                        let nm = '';
-                        if (typeof e === 'string') nm = e.trim();
-                        else if (e && typeof e === 'object') nm = (e.name || '').trim();
-                        if (nm) names.push(nm);
-                    });
-                }
+                const names = await window.fetchFirebaseMitspielerNames();
                 if (!names.length) {
-                    alert('Keine Mitspieler in Firebase gefunden.');
+                    alert('Keine Mitspieler mit Preisskat-Haken in Firebase gefunden.');
                     return;
                 }
-                names.sort((a, b) => a.localeCompare(b, 'de'));
                 let added = 0;
                 names.forEach(nm => {
                     const exists = allPlayers.some(p => p.toLowerCase() === nm.toLowerCase());
                     if (!exists) { addPlayerToList(nm); added++; }
                 });
+                const removed = removePlayersNotIn(names);
+                sortPlayerList();
                 updateSelectedPlayers();
                 if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
                 saveState();
-                alert(`${names.length} Mitspieler in Firebase – ${added} neu in die Liste übernommen.`);
+                alert(`${names.length} Preisskat-Mitspieler in Firebase – ${added} neu übernommen, ${removed} ohne Preisskat-Haken entfernt.`);
             } catch (err) {
                 console.error('Mitspieler aus Firebase laden fehlgeschlagen:', err);
                 alert('Laden fehlgeschlagen: ' + (err && err.message ? err.message : err));
@@ -2468,7 +2752,7 @@ function updateRanking() {
                 const arr = snap.exists() ? (snap.data().Mitspieler || []) : [];
                 mitspielerVerwData = arr.map(e => {
                     if (typeof e === 'string') {
-                        return { name: e.trim(), eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, email: '' };
+                        return { name: e.trim(), eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, online: false, email: '' };
                     }
                     if (!e || typeof e !== 'object') return null;
                     return {
@@ -2477,6 +2761,7 @@ function updateRanking() {
                         geburtsdatum: eintrittToIsoGlobal(e.geburtsdatum),
                         mitglied: e.mitglied === true,
                         preisskat: isPreisskatTrue(e.preisskat),
+                        online: e.online === true,
                         email: (e.email || '').trim()
                     };
                 }).filter(e => e && e.name);
@@ -2508,6 +2793,7 @@ function updateRanking() {
             html += `<th style="${th}text-align:left;width:140px;">Geburtsdatum</th>`;
             html += `<th style="${th}text-align:center;width:80px;">Mitglied</th>`;
             html += `<th style="${th}text-align:center;width:90px;">Preisskat</th>`;
+            html += `<th style="${th}text-align:center;width:70px;">Online</th>`;
             html += `<th style="${th}text-align:left;width:420px;">E-Mail</th>`;
             html += `<th style="${th}text-align:center;width:60px;"></th>`;
             html += '</tr></thead><tbody>';
@@ -2519,6 +2805,7 @@ function updateRanking() {
                 html += `<td style="${cell}"><input type="date" value="${escapeHtmlAttr(e.geburtsdatum)}" oninput="mvSet(${i},'geburtsdatum',this.value)" style="${inputStyle}"></td>`;
                 html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.mitglied ? 'checked' : ''} onchange="mvSet(${i},'mitglied',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
                 html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.preisskat ? 'checked' : ''} onchange="mvSet(${i},'preisskat',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
+                html += `<td style="${cell}text-align:center;"><input type="checkbox" ${e.online ? 'checked' : ''} onchange="mvSet(${i},'online',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>`;
                 html += `<td style="${cell}"><input type="email" id="mvEmail_${i}" value="${escapeHtmlAttr(e.email)}" oninput="mvSet(${i},'email',this.value)" style="${inputStyle}"></td>`;
                 html += `<td style="${cell}text-align:center;"><button onclick="removeMitspielerVerw(${i})" style="background:#e53935;color:white;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;line-height:1;">×</button></td>`;
                 html += '</tr>';
@@ -2623,7 +2910,7 @@ function updateRanking() {
         };
 
         window.addMitspielerVerwRow = function() {
-            mitspielerVerwData.push({ name: '', eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, email: '' });
+            mitspielerVerwData.push({ name: '', eintritt: '', geburtsdatum: '', mitglied: false, preisskat: false, online: false, email: '' });
             renderMitspielerVerw();
         };
 
@@ -2809,6 +3096,584 @@ function updateRanking() {
             }
         };
 
+        // E-Mail an alle Online-Teilnehmer mit dem Online-Gesamtstand als PDF
+        // (PDF wird heruntergeladen und muss – wie beim Spieltag – im Mailprogramm angehängt werden).
+        window.sendOnlineEmail = async function() {
+            let recipients = [];
+            try {
+                const seen = new Set();
+                const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+                (snap.exists() ? (snap.data().Mitspieler || []) : []).forEach(e => {
+                    if (!e || typeof e !== 'object' || e.online !== true) return;
+                    const email = (e.email || '').trim();
+                    if (!email || !/@/.test(email)) return;
+                    const key = email.toLowerCase();
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    recipients.push(email);
+                });
+            } catch (err) {
+                alert('Fehler beim Laden der Online-Teilnehmer: ' + (err.message || err));
+                return;
+            }
+            if (!recipients.length) {
+                if (!confirm('Keine Online-Teilnehmer mit hinterlegter E-Mail-Adresse gefunden. Trotzdem fortfahren und nur das PDF erzeugen?')) return;
+            }
+
+            try {
+                showEmailProgress('Erstelle Online-Wertung …');
+                openOverlay('onlineModal');
+                await window.showOnlineGesamt();
+                await window.exportOnlineGesamtPdf();
+                window.closeOnline();
+            } catch (err) {
+                hideEmailProgress();
+                alert('Fehler beim PDF-Erstellen: ' + (err.message || err));
+                return;
+            }
+            hideEmailProgress();
+
+            const data = window.__onlineData || {};
+            if (!data.lastNr) { alert('Noch keine Online-Ergebnisse vorhanden.'); return; }
+            const datumDe = data.dates[data.lastNr - 1].full;
+            const subject = `Online-Wertung ${data.lastNr}. Online-Abend - ${datumDe} - 1. Sintherner Skatclub`;
+            const body = [
+                'Liebe Skatfreunde,',
+                '',
+                `anbei der aktuelle Stand der Online-Wertung nach dem ${data.lastNr}. Online-Abend vom ${datumDe}.`,
+                '',
+                'VG',
+                'Frank',
+                '',
+                'Anhang:',
+                `  • ${onlinePdfName(data)}`
+            ].join('\n');
+
+            const params = [];
+            if (recipients.length) params.push('bcc=' + encodeURIComponent(recipients.join(';')));
+            params.push('subject=' + encodeURIComponent(subject));
+            params.push('body=' + encodeURIComponent(body));
+            window.location.href = 'mailto:?' + params.join('&');
+        };
+
+        function onlinePdfName(data) {
+            return `Online-Wertung_${data.seasonYear}-${String(data.lastNr || 0).padStart(2, '0')}.pdf`;
+        }
+
+        // Online-Gesamtstand als PDF (A4 quer), Aufbau wie die Jahreswertung des Clubs
+        window.exportOnlineGesamtPdf = async function() {
+            if (!window.jspdf) {
+                alert('PDF-Bibliothek nicht geladen — bitte Internetverbindung prüfen.');
+                return;
+            }
+            const data = window.__onlineData;
+            if (!data || !data.players || !data.players.length) {
+                alert('Keine Daten zum Export vorhanden. Bitte Gesamtstand erneut öffnen.');
+                return;
+            }
+            try {
+                const { players, dates } = data;
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageW = 297, margin = 8;
+
+                // ---------- Kopfzeile ----------
+                const logoData = window.SKAT_LOGO_DATA || null;
+                let logoRatio = 45 / 44;
+                if (logoData) {
+                    try {
+                        const logoImg = await new Promise((resolve, reject) => {
+                            const im = new Image();
+                            im.onload = () => resolve(im);
+                            im.onerror = reject;
+                            im.src = logoData;
+                        });
+                        logoRatio = logoImg.naturalWidth / logoImg.naturalHeight;
+                    } catch (e) { console.warn('Logo-Maße:', e); }
+                }
+                const logoH = 11, logoW = logoH * logoRatio;
+                if (logoData) pdf.addImage(logoData, 'PNG', margin, margin, logoW, logoH);
+                pdf.setFontSize(16); pdf.setFont(undefined, 'bold');
+                pdf.setTextColor(0, 0, 0);
+                pdf.text('1. Sintherner Skatclub', margin + (logoData ? logoW + 3 : 0), margin + 8);
+                pdf.text(data.titelText, pageW / 2 + 15, margin + 8, { align: 'center' });
+                pdf.setFontSize(11);
+                pdf.text(data.standText, pageW - margin, margin + 8, { align: 'right' });
+                pdf.setFont(undefined, 'normal');
+
+                // ---------- Spaltenlayout (feste Breiten in mm) ----------
+                const cols = [];
+                cols.push({ key: 'rank', w: 6, align: 'right' });
+                cols.push({ key: 'name', w: 35, align: 'left' });
+                dates.forEach((d, i) => cols.push({ key: 'ot', iso: d.iso, header: 'OT ' + (i + 1), sub: d.label, w: 8.2, align: 'right' }));
+                cols.push({ key: 'total', w: 15, align: 'right', fill: [227, 242, 253], header: 'Gesamt', sub: `beste ${ONLINE_KEEP_BEST}` });
+                cols.push({ key: 'streich', w: 15, align: 'right', fill: [255, 243, 224], header: 'Streich', sub: 'nächste 2' });
+                cols.push({ key: 'aussetzer', w: 15, align: 'right', fill: [252, 228, 236], header: 'Aussetzer', sub: 'Anzahl' });
+                const totalW = cols.reduce((s, c) => s + c.w, 0);
+                const startX = Math.max(margin / 2, (pageW - totalW) / 2);
+                let cxpos = startX;
+                cols.forEach(c => { c.x = cxpos; cxpos += c.w; });
+                const pad = 1.0;
+
+                const yTop = margin + 14;
+                const headerH = 8;
+                const rowH = 8;
+                const tableBottom = yTop + headerH + rowH * players.length;
+
+                function cellText(str, col, rowY, opts) {
+                    opts = opts || {};
+                    if (str == null || str === '') return;
+                    str = String(str);
+                    pdf.setFontSize(opts.size || 8);
+                    pdf.setFont(undefined, opts.bold ? 'bold' : 'normal');
+                    const tc = opts.color || [0, 0, 0];
+                    pdf.setTextColor(tc[0], tc[1], tc[2]);
+                    const tx = col.align === 'left' ? col.x + pad : col.x + col.w - pad;
+                    const ty = rowY + rowH / 2;
+                    pdf.text(str, tx, ty, { align: col.align, baseline: 'middle' });
+                    if (opts.strike) {
+                        const tw = pdf.getTextWidth(str);
+                        pdf.setDrawColor(tc[0], tc[1], tc[2]); pdf.setLineWidth(0.25);
+                        pdf.line(tx - tw, ty, tx, ty);
+                    }
+                    pdf.setTextColor(0, 0, 0);
+                }
+
+                // ---------- Kopfzeile der Tabelle ----------
+                pdf.setFillColor(242, 242, 242);
+                pdf.rect(startX, yTop, totalW, headerH, 'F');
+                cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, yTop, c.w, headerH, 'F'); } });
+                cols.forEach(c => {
+                    const label = c.key === 'rank' ? 'Rg' : (c.key === 'name' ? 'Name' : c.header);
+                    const tx = c.align === 'left' ? c.x + pad : c.x + c.w - pad;
+                    pdf.setFont(undefined, 'bold'); pdf.setFontSize(c.key === 'ot' ? 7 : 8); pdf.setTextColor(0, 0, 0);
+                    pdf.text(label, tx, yTop + headerH / 2 - 1.2, { align: c.align, baseline: 'middle' });
+                    if (c.sub) {
+                        pdf.setFont(undefined, 'normal'); pdf.setFontSize(5); pdf.setTextColor(110, 110, 110);
+                        pdf.text(c.sub, c.x + c.w - pad, yTop + headerH / 2 + 2, { align: 'right', baseline: 'middle' });
+                        pdf.setTextColor(0, 0, 0);
+                    }
+                });
+
+                // ---------- Datenzeilen ----------
+                players.forEach((p, idx) => {
+                    const rowY = yTop + headerH + idx * rowH;
+                    const zebra = idx % 2 === 1 ? [245, 245, 245] : [255, 255, 255];
+                    pdf.setFillColor(zebra[0], zebra[1], zebra[2]);
+                    pdf.rect(startX, rowY, totalW, rowH, 'F');
+                    cols.forEach(c => { if (c.fill) { pdf.setFillColor(c.fill[0], c.fill[1], c.fill[2]); pdf.rect(c.x, rowY, c.w, rowH, 'F'); } });
+                    cols.forEach(c => {
+                        if (c.key === 'rank') cellText(p.displayRank, c, rowY);
+                        else if (c.key === 'name') cellText(p.name, c, rowY);
+                        else if (c.key === 'total') cellText(p.total, c, rowY, { bold: true });
+                        else if (c.key === 'streich') cellText(p.streich.length ? p.streich.join(', ') : '-', c, rowY, { size: 7.5, color: [102, 102, 102] });
+                        else if (c.key === 'aussetzer') cellText(p.missing.size, c, rowY, { bold: true });
+                        else if (c.key === 'ot') {
+                            const v = p.byDate[c.iso];
+                            if (v == null) { cellText('-', c, rowY, { color: [187, 187, 187] }); return; }
+                            if (v < 0) { pdf.setFillColor(211, 47, 47); pdf.rect(c.x, rowY, c.w, rowH, 'F'); }
+                            const isDropped = p.dropped.has(c.iso);
+                            let color = [0, 0, 0];
+                            if (v < 0) color = [255, 255, 255];
+                            else if (p.missing.has(c.iso)) color = [211, 47, 47];
+                            if (isDropped) color = [150, 150, 150];
+                            cellText(v, c, rowY, { bold: !isDropped, color, strike: isDropped });
+                        }
+                    });
+                });
+
+                // ---------- Gitterlinien ----------
+                pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.1);
+                let vx = startX;
+                pdf.line(vx, yTop, vx, tableBottom);
+                cols.forEach(c => { vx += c.w; pdf.line(vx, yTop, vx, tableBottom); });
+                pdf.line(startX, yTop, startX + totalW, yTop);
+                for (let r = 0; r <= players.length; r++) {
+                    const yy = yTop + headerH + r * rowH;
+                    pdf.line(startX, yy, startX + totalW, yy);
+                }
+
+                pdf.setFontSize(7); pdf.setTextColor(120, 120, 120);
+                pdf.text(`Rot = nicht gespielt (${ONLINE_DEFAULT_PUNKTE} Punkte). Durchgestrichen = Streichergebnis. Negative Ergebnisse zählen immer.`, startX, tableBottom + 4);
+                pdf.setTextColor(0, 0, 0);
+
+                pdf.save(onlinePdfName(data));
+            } catch (err) {
+                console.error(err);
+                alert('PDF-Export fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            }
+        };
+
+        // ===== Online-Wertung (an den Dienstagen zwischen den Club-Spieltagen) =====
+        // Firestore: Collection 'onlinewertung', Dokument-ID = Datum (YYYY-MM-DD),
+        // Felder { datum, spieler: [{ name, punkte }] }. Teilnehmer = Mitspieler mit online=true.
+        const ONLINE_DEFAULT_PUNKTE = 700;
+        const ONLINE_KEEP_BEST = 18;
+        // 24 Online-Termine (alle 2 Wochen ab 20.01.2026, jeweils zwischen zwei Spieltagen)
+        function getOnlineDates() {
+            const dates = [];
+            const start = new Date(Date.UTC(2026, 0, 20));
+            for (let i = 0; i < 24; i++) {
+                const d = new Date(start);
+                d.setUTCDate(d.getUTCDate() + i * 14);
+                const iso = d.toISOString().slice(0, 10);
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                dates.push({ iso, label: `${dd}.${mm}`, full: `${dd}.${mm}.${iso.slice(0, 4)}` });
+            }
+            return dates;
+        }
+
+        async function loadOnlineTeilnehmer() {
+            const snap = await getDoc(doc(db, 'mitspieler', 'Liste'));
+            const arr = snap.exists() ? (snap.data().Mitspieler || []) : [];
+            return arr
+                .filter(e => e && typeof e === 'object' && e.online === true && (e.name || '').trim())
+                .map(e => ({ name: e.name.trim(), eintritt: eintrittToIsoGlobal(e.eintritt) }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+        }
+
+        let onlineErfassung = { iso: '', teilnehmer: [] };
+
+        window.closeOnline = function() {
+            closeOverlay('onlineModal');
+        };
+
+        window.showOnlineWertung = function() {
+            openOverlay('onlineModal');
+            showOnlineErfassung();
+        };
+
+        function setOnlineTab(tab) {
+            document.getElementById('onlineHeading').textContent =
+                tab === 'erfassung' ? 'Online-Wertung – Erfassung' : 'Online-Wertung – Gesamtstand';
+            document.getElementById('onlineTabErfassung').style.opacity = tab === 'erfassung' ? '1' : '0.6';
+            document.getElementById('onlineTabGesamt').style.opacity = tab === 'gesamt' ? '1' : '0.6';
+            document.getElementById('onlinePdfBtn').style.display = tab === 'gesamt' ? '' : 'none';
+        }
+
+        window.showOnlineErfassung = async function() {
+            setOnlineTab('erfassung');
+            const content = document.getElementById('onlineContent');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                onlineErfassung.teilnehmer = await loadOnlineTeilnehmer();
+                if (!onlineErfassung.teilnehmer.length) {
+                    content.innerHTML = '<p>Keine Online-Teilnehmer gefunden. Bitte in der Mitspieler-Verwaltung die Spalte „Online“ ankreuzen und speichern.</p>';
+                    return;
+                }
+                const dates = getOnlineDates();
+                // Vorauswahl: letzter Online-Termin bis heute, sonst der erste
+                const todayIso = new Date().toISOString().slice(0, 10);
+                if (!onlineErfassung.iso) {
+                    const past = dates.filter(d => d.iso <= todayIso);
+                    onlineErfassung.iso = past.length ? past[past.length - 1].iso : dates[0].iso;
+                }
+                let html = '<div style="max-width:520px;margin:0 auto;">';
+                html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
+                html += '<label for="onlineDatum" style="font-weight:bold;">Online-Abend:</label>';
+                html += '<select id="onlineDatum" onchange="onlineDatumChanged(this.value)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;">';
+                dates.forEach((d, i) => {
+                    html += `<option value="${d.iso}" ${d.iso === onlineErfassung.iso ? 'selected' : ''}>OT ${i + 1} – ${d.full}</option>`;
+                });
+                html += '</select></div>';
+                html += '<div id="onlineErfassungTabelle">Lade …</div>';
+                html += '<details style="margin-top:20px;"><summary style="cursor:pointer;font-weight:bold;padding:8px 10px;background:#e3f2fd;border-radius:4px;font-size:14px;">Tabelle einfügen (mehrere Abende übernehmen)</summary>';
+                html += '<div style="padding:10px;background:#f8f8f8;border:1px solid #ddd;border-radius:4px;margin-top:4px;">';
+                html += `<p style="margin:0 0 6px;font-size:13px;color:#555;">Aus Excel kopieren: je Zeile Name und die Punkte der Abende (Spalte 1 = OT 1 usw.). Eine Kopfzeile mit Datumsangaben (TT.MM) wird zur Zuordnung genutzt. ${ONLINE_DEFAULT_PUNKTE} gilt als „nicht gespielt“. Vorhandene Werte dieser Spieler an diesen Abenden werden überschrieben.</p>`;
+                html += '<textarea id="onlineImportText" rows="8" style="width:100%;font-family:monospace;font-size:12px;padding:6px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;"></textarea>';
+                html += '<div style="margin-top:6px;text-align:right;"><button onclick="importOnlineTabelle(this)" style="background:#1976d2;color:white;border:none;border-radius:4px;padding:6px 14px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;width:auto;">Importieren</button></div>';
+                html += '</div></details>';
+                html += '</div>';
+                content.innerHTML = html;
+                await renderOnlineErfassungTabelle();
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${err.message || err}</p>`;
+            }
+        };
+
+        // Namen der eingefügten Tabelle den Online-Teilnehmern zuordnen,
+        // auch bei vertauschter Reihenfolge ("Vorname, Nachname").
+        function findOnlineTeilnehmer(name) {
+            const key = s => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+            const k = key(name);
+            const parts = k.split(',').map(x => x.trim());
+            const swapped = parts.length === 2 ? `${parts[1]}, ${parts[0]}` : null;
+            const t = onlineErfassung.teilnehmer.find(t => key(t.name) === k)
+                || (swapped && onlineErfassung.teilnehmer.find(t => key(t.name) === swapped));
+            return t ? t.name : null;
+        }
+
+        window.importOnlineTabelle = async function(btn) {
+            if (!auth.currentUser) { alert('Bitte zuerst mit Google anmelden, um speichern zu können.'); return; }
+            const dates = getOnlineDates();
+            const lines = document.getElementById('onlineImportText').value.split(/\r?\n/).filter(l => l.trim());
+            // Spalte -> Datum: über eine Kopfzeile mit TT.MM, sonst Spalte n = OT n
+            let colToIso = null;
+            const werte = {}; // name -> { iso: punkte }
+            const unbekannt = [];
+            lines.forEach(line => {
+                const cells = line.split('\t').map(c => c.trim());
+                const datumCells = cells.slice(1).map(c => (c.match(/^(\d{1,2})\.(\d{1,2})\.?/) || null));
+                if (!/[a-zäöüß]/i.test(cells[0] || '') && datumCells.some(m => m)) {
+                    colToIso = datumCells.map(m => {
+                        if (!m) return null;
+                        const label = `${m[1].padStart(2, '0')}.${m[2].padStart(2, '0')}`;
+                        const d = dates.find(d => d.label === label);
+                        return d ? d.iso : null;
+                    });
+                    return;
+                }
+                if (!/[a-zäöüß]/i.test(cells[0] || '')) return; // Nummernzeile o. Ä.
+                const name = findOnlineTeilnehmer(cells[0]);
+                if (!name) { unbekannt.push(cells[0]); return; }
+                werte[name] = {};
+                cells.slice(1).forEach((c, i) => {
+                    const iso = colToIso ? colToIso[i] : (dates[i] && dates[i].iso);
+                    if (!iso || c === '') return;
+                    werte[name][iso] = Number(c.replace(/\./g, '').replace(',', '.'));
+                });
+            });
+            if (unbekannt.length) {
+                alert('Diese Namen sind keine Online-Teilnehmer:\n' + unbekannt.join('\n') + '\n\nBitte in der Mitspieler-Verwaltung „Online“ ankreuzen oder den Namen anpassen.');
+                return;
+            }
+            const namen = Object.keys(werte);
+            const isos = [...new Set(namen.flatMap(n => Object.keys(werte[n])))].sort();
+            if (!namen.length || !isos.length) { alert('Keine Werte erkannt.'); return; }
+            const ungueltig = namen.flatMap(n => Object.entries(werte[n]).filter(([, v]) => !Number.isFinite(v)).map(([iso]) => `${n} (${iso})`));
+            if (ungueltig.length) { alert('Ungültige Punktzahl bei:\n' + ungueltig.join('\n')); return; }
+            if (!confirm(`${namen.length} Spieler an ${isos.length} Online-Abenden übernehmen?`)) return;
+            const origLabel = btn.textContent;
+            btn.disabled = true; btn.textContent = 'Speichere …';
+            try {
+                for (const iso of isos) {
+                    // Mit vorhandenem Abend zusammenführen: nur die importierten Spieler ersetzen
+                    const snap = await getDoc(doc(db, 'onlinewertung', iso));
+                    const spieler = (snap.exists() ? (snap.data().spieler || []) : [])
+                        .filter(s => s && !namen.includes(s.name));
+                    namen.forEach(n => {
+                        const v = werte[n][iso];
+                        if (v != null && v !== ONLINE_DEFAULT_PUNKTE) spieler.push({ name: n, punkte: v });
+                    });
+                    await setDoc(doc(db, 'onlinewertung', iso), {
+                        datum: iso,
+                        spieler,
+                        uid: auth.currentUser.uid,
+                        updatedAt: serverTimestamp()
+                    });
+                }
+                alert(`${isos.length} Online-Abende gespeichert.`);
+                await renderOnlineErfassungTabelle();
+            } catch (err) {
+                console.error('Online-Import fehlgeschlagen:', err);
+                alert('Import fehlgeschlagen: ' + (err && err.message ? err.message : err));
+            } finally {
+                btn.textContent = origLabel; btn.disabled = false;
+            }
+        };
+
+        window.onlineDatumChanged = async function(iso) {
+            onlineErfassung.iso = iso;
+            try {
+                await renderOnlineErfassungTabelle();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('onlineErfassungTabelle').innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${err.message || err}</p>`;
+            }
+        };
+
+        async function renderOnlineErfassungTabelle() {
+            const box = document.getElementById('onlineErfassungTabelle');
+            box.innerHTML = 'Lade …';
+            const snap = await getDoc(doc(db, 'onlinewertung', onlineErfassung.iso));
+            const vorhanden = {};
+            if (snap.exists()) {
+                (snap.data().spieler || []).forEach(s => {
+                    if (s && s.name && s.punkte != null) vorhanden[s.name] = s.punkte;
+                });
+            }
+            const cell = 'padding:6px 8px;border:1px solid #ddd;';
+            const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+            let html = '<table style="border-collapse:collapse;width:100%;font-size:14px;">';
+            html += `<thead><tr><th style="${th}text-align:left;">Name</th><th style="${th}text-align:right;width:140px;">Punkte</th></tr></thead><tbody>`;
+            onlineErfassung.teilnehmer.forEach((t, i) => {
+                const rowBg = i % 2 === 1 ? '#f5f5f5' : 'white';
+                const v = vorhanden[t.name];
+                html += `<tr style="background:${rowBg};">`;
+                html += `<td style="${cell}">${escapeHtmlAttr(t.name)}</td>`;
+                html += `<td style="${cell}"><input type="number" inputmode="numeric" data-online-name="${escapeHtmlAttr(t.name)}" value="${v != null ? v : ''}" placeholder="${ONLINE_DEFAULT_PUNKTE}" style="width:100%;border:none;background:transparent;font-size:14px;text-align:right;padding:2px 4px;box-sizing:border-box;margin:0;"></td>`;
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            html += `<p style="font-size:12px;color:#555;margin:6px 0 0;">Leeres Feld = nicht gespielt, zählt in der Wertung mit ${ONLINE_DEFAULT_PUNKTE} Punkten.</p>`;
+            html += '<div style="text-align:center;margin-top:14px;"><button onclick="saveOnlineErfassung(this)" style="background:#388e3c;color:white;border:none;border-radius:4px;padding:8px 18px;cursor:pointer;font-size:14px;font-family:Arial,sans-serif;width:auto;">Speichern</button></div>';
+            box.innerHTML = html;
+        }
+
+        window.saveOnlineErfassung = async function(btn) {
+            if (!auth.currentUser) { alert('Bitte zuerst mit Google anmelden, um speichern zu können.'); return; }
+            const spieler = [];
+            let fehler = '';
+            document.querySelectorAll('#onlineErfassungTabelle input[data-online-name]').forEach(inp => {
+                const raw = inp.value.trim();
+                if (raw === '') return;
+                const val = Number(raw);
+                if (!Number.isFinite(val)) { fehler = inp.dataset.onlineName; return; }
+                spieler.push({ name: inp.dataset.onlineName, punkte: val });
+            });
+            if (fehler) { alert('Ungültige Punktzahl bei ' + fehler); return; }
+            if (!spieler.length) {
+                if (!confirm('Keine Punkte eingetragen. Soll der Abend leer gespeichert werden (zählt dann nicht als gespielt)?')) return;
+            }
+            const origLabel = btn.textContent;
+            btn.disabled = true; btn.textContent = 'Speichere …';
+            try {
+                await setDoc(doc(db, 'onlinewertung', onlineErfassung.iso), {
+                    datum: onlineErfassung.iso,
+                    spieler,
+                    uid: auth.currentUser.uid,
+                    updatedAt: serverTimestamp()
+                });
+                btn.textContent = 'Gespeichert ✓';
+                setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
+            } catch (err) {
+                console.error('Online-Wertung speichern fehlgeschlagen:', err);
+                alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+                btn.textContent = origLabel; btn.disabled = false;
+            }
+        };
+
+        window.showOnlineGesamt = async function() {
+            setOnlineTab('gesamt');
+            const content = document.getElementById('onlineContent');
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const teilnehmer = await loadOnlineTeilnehmer();
+                if (!teilnehmer.length) {
+                    content.innerHTML = '<p>Keine Online-Teilnehmer gefunden. Bitte in der Mitspieler-Verwaltung die Spalte „Online“ ankreuzen und speichern.</p>';
+                    return;
+                }
+                const dates = getOnlineDates();
+                // punkte[iso][name] = Wert; nur Abende mit mindestens einem Eintrag gelten als gespielt
+                const punkte = {};
+                const snap = await getDocs(collection(db, 'onlinewertung'));
+                snap.forEach(ds => {
+                    const data = ds.data();
+                    const werte = {};
+                    (data.spieler || []).forEach(s => {
+                        const v = Number(s && s.punkte);
+                        if (s && s.name && Number.isFinite(v)) werte[s.name] = v;
+                    });
+                    if (Object.keys(werte).length) punkte[data.datum || ds.id] = werte;
+                });
+                const playedDates = dates.filter(d => punkte[d.iso]);
+
+                const players = teilnehmer.map(t => {
+                    const byDate = {};
+                    const missing = new Set();
+                    const dropped = new Set();
+                    const pairs = [];
+                    playedDates.forEach(d => {
+                        if (t.eintritt && d.iso < t.eintritt) return;
+                        let v = punkte[d.iso][t.name];
+                        if (v == null) { v = ONLINE_DEFAULT_PUNKTE; missing.add(d.iso); }
+                        byDate[d.iso] = v;
+                        pairs.push({ iso: d.iso, value: v });
+                    });
+                    // Streichresultate wie in der Jahreswertung: nur Werte >= 0 streichbar, die niedrigsten zuerst
+                    if (pairs.length > ONLINE_KEEP_BEST) {
+                        const droppable = pairs.filter(p => p.value >= 0).sort((a, b) => a.value - b.value);
+                        const dropCount = Math.min(pairs.length - ONLINE_KEEP_BEST, droppable.length);
+                        for (let i = 0; i < dropCount; i++) dropped.add(droppable[i].iso);
+                    }
+                    const total = pairs.reduce((sum, p) => sum + (dropped.has(p.iso) ? 0 : p.value), 0);
+                    // Nächste 2 Streichkandidaten wie in der Jahreswertung: nicht-negative Ergebnisse
+                    // + so viele 0-Plätze, wie bis 18 noch fehlen, dann die zwei niedrigsten (bereits gestrichene übersprungen).
+                    const streichPool = pairs.filter(p => p.value >= 0).map(p => p.value)
+                        .concat(new Array(Math.max(0, ONLINE_KEEP_BEST - pairs.length)).fill(0))
+                        .sort((a, b) => a - b);
+                    const streich = streichPool.slice(dropped.size, dropped.size + 2);
+                    // Tie-Break: echte Ergebnisse absteigend (700-Ersatzwert zählt nicht)
+                    const sortedDays = pairs.filter(p => !missing.has(p.iso)).map(p => p.value).sort((a, b) => b - a);
+                    return { name: t.name, byDate, missing, dropped, total, streich, sortedDays };
+                });
+                function compareDays(a, b) {
+                    const n = Math.max(a.length, b.length);
+                    for (let i = 0; i < n; i++) {
+                        const av = i < a.length ? a[i] : -Infinity;
+                        const bv = i < b.length ? b[i] : -Infinity;
+                        if (av !== bv) return bv - av;
+                    }
+                    return 0;
+                }
+                players.sort((a, b) => (b.total - a.total) || compareDays(a.sortedDays, b.sortedDays));
+                let currentRank = 1;
+                players.forEach((p, i) => {
+                    const prev = players[i - 1];
+                    const tied = i > 0 && prev.total === p.total && compareDays(prev.sortedDays, p.sortedDays) === 0;
+                    if (i > 0 && !tied) currentRank = i + 1;
+                    p.displayRank = (i === 0 || !tied) ? currentRank : '';
+                });
+
+                const lastIso = playedDates.length ? playedDates[playedDates.length - 1].iso : '';
+                const lastNr = lastIso ? dates.findIndex(d => d.iso === lastIso) + 1 : 0;
+                const seasonYear = dates[0].iso.slice(0, 4);
+                const titelText = lastNr
+                    ? `Online-Wertung ${seasonYear} zum ${lastNr}. Online-Abend`
+                    : `Online-Wertung ${seasonYear}`;
+                document.getElementById('onlineHeading').textContent = titelText;
+                const standText = lastIso ? `Stand: ${dates[lastNr - 1].full}` : 'Stand: –';
+                // Daten für PDF-Export / E-Mail bereitstellen
+                window.__onlineData = { players, dates, titelText, standText, seasonYear, lastNr, lastIso };
+
+                const cell = 'padding:8px 2px;border:1px solid #ddd;';
+                const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;line-height:14px;' + cell;
+                let html = '<div style="overflow:auto;max-height:calc(100vh - 100px);"><table style="border-collapse:collapse;font-size:12px;margin:0 auto;">';
+                html += '<thead><tr>';
+                html += `<th style="${th}width:30px;text-align:right;">Rg</th>`;
+                html += `<th style="${th}text-align:left;white-space:nowrap;">Name</th>`;
+                dates.forEach((d, i) => {
+                    html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;min-width:26px;">OT ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:8px;">${d.label}</span></th>`;
+                });
+                html += `<th style="${th}text-align:right;background:#e3f2fd;min-width:52px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste ${ONLINE_KEEP_BEST}</span></th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;min-width:52px;">Streich<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">nächste 2</span></th>`;
+                html += `<th style="${th}text-align:right;background:#fce4ec;min-width:52px;">Aussetzer<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">Anzahl</span></th>`;
+                html += '</tr></thead><tbody>';
+                players.forEach((p, idx) => {
+                    const rowBg = idx % 2 === 1 ? '#f5f5f5' : 'white';
+                    html += `<tr style="background:${rowBg};">`;
+                    html += `<td style="${cell}text-align:right;">${p.displayRank}</td>`;
+                    html += `<td style="${cell}white-space:nowrap;">${escapeHtmlAttr(p.name)}</td>`;
+                    dates.forEach(d => {
+                        const v = p.byDate[d.iso];
+                        if (v == null) {
+                            html += `<td style="${cell}text-align:right;color:#bbb;">-</td>`;
+                            return;
+                        }
+                        let style = '';
+                        if (v < 0) style += 'color:white;background:#d32f2f;';
+                        else if (p.missing.has(d.iso)) style += 'color:#d32f2f;';
+                        style += p.dropped.has(d.iso) ? 'text-decoration:line-through;opacity:0.45;' : 'font-weight:bold;';
+                        html += `<td style="${cell}text-align:right;${style}">${v}</td>`;
+                    });
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;">${p.total}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#fff3e0;color:#666;white-space:nowrap;">${p.streich.length ? p.streich.join(', ') : '-'}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#fce4ec;font-weight:bold;">${p.missing.size}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                html += '<div style="margin:8px 4px 0;font-size:11px;color:#555;line-height:1.5;">';
+                html += `<div><span style="color:#d32f2f;">Rot</span> = nicht gespielt (${ONLINE_DEFAULT_PUNKTE} Punkte). Durchgestrichen = Streichergebnis. Negative Ergebnisse zählen immer.</div>`;
+                html += '</div>';
+                content.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
+            }
+        };
+
         window.saveMitspielerVerw = async function() {
             const clean = mitspielerVerwData
                 .map(e => ({
@@ -2817,6 +3682,7 @@ function updateRanking() {
                     geburtsdatum: (e.geburtsdatum || '').trim(),
                     mitglied: !!e.mitglied,
                     preisskat: !!e.preisskat,
+                    online: !!e.online,
                     email: (e.email || '').trim()
                 }))
                 .filter(e => e.name);
@@ -2892,10 +3758,12 @@ function updateRanking() {
                     btn.textContent = 'Setzliste gespeichert ✓';
                     setTimeout(() => { btn.textContent = origLabel; btn.disabled = false; }, 2000);
                 }
+                return true;
             } catch (err) {
                 console.error('Setzliste speichern fehlgeschlagen:', err);
                 alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
                 if (btn) { btn.textContent = origLabel; btn.disabled = false; }
+                return false;
             }
         };
 
