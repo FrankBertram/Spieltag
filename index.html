@@ -1659,7 +1659,7 @@ function updateRanking() {
                 cols.push({ key: 'name', w: 35, align: 'left' });
                 dates.forEach((d, i) => cols.push({ key: 'st', iso: d.iso, header: 'ST ' + (i + 1), sub: d.label, w: 8.2, align: 'right', subSize: 5 }));
                 cols.push({ key: 'total', w: 15, align: 'right', fill: [227, 242, 253], header: 'Gesamt', sub: 'beste 18 ST *', subSize: 5 });
-                cols.push({ key: 'streich', w: 13, align: 'right', fill: [255, 243, 224], header: 'Streich', sub: 'nächste 2 ST', subSize: 5 });
+                cols.push({ key: 'streich', w: 16, align: 'right', fill: [255, 243, 224], header: 'Streich', sub: 'nächste 2 ST', subSize: 5 });
                 cols.push({ key: 'form', w: 17, align: 'right', fill: [232, 245, 233], header: 'Form', sub: 'Ø letzte 8 ST', subSize: 5 });
                 const totalW = cols.reduce((s, c) => s + c.w, 0);
                 const startX = Math.max(margin / 2, (pageW - totalW) / 2);
@@ -2090,29 +2090,29 @@ function updateRanking() {
                 const cell = 'padding:8px 2px;border:1px solid #ddd;';
                 const th = 'background:#f2f2f2;font-weight:bold;vertical-align:top;line-height:14px;' + cell;
                 const stickyRank = 'position:sticky;left:0;background:white;z-index:1;';
-                const stickyName = 'position:sticky;left:30px;background:white;z-index:1;';
+                const stickyName = 'position:sticky;left:20px;background:white;z-index:1;';
                 const stickyRankTh = 'position:sticky;left:0;z-index:2;';
-                const stickyNameTh = 'position:sticky;left:30px;z-index:2;';
+                const stickyNameTh = 'position:sticky;left:20px;z-index:2;';
 
-                let html = '<div id="gesamtlisteScroller" style="overflow:auto;max-height:calc(100vh - 100px);"><table style="border-collapse:collapse;font-size:12px;">';
+                let html = '<div id="gesamtlisteScroller" style="overflow:auto;max-height:calc(100vh - 100px);"><table style="width:auto;margin:0 auto;border-collapse:collapse;font-size:12px;">';
                 html += '<thead><tr>';
-                html += `<th style="${th}${stickyRankTh}width:30px;text-align:right;">Rg</th>`;
-                html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:140px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
+                html += `<th style="${th}${stickyRankTh}width:15px;min-width:15px;max-width:15px;text-align:right;">Rg</th>`;
+                html += `<th style="${th}${stickyNameTh}text-align:left;white-space:nowrap;width:135px;min-width:135px;max-width:135px;overflow:hidden;text-overflow:ellipsis;">Name</th>`;
                 dates.forEach((d, i) => {
                     html += `<th style="${th}text-align:right;white-space:nowrap;font-size:10px;width:26px;min-width:26px;max-width:26px;">ST ${i + 1}<br><span style="font-weight:normal;color:#666;font-size:8px;">${d.label}</span></th>`;
                 });
-                html += `<th style="${th}text-align:right;background:#e3f2fd;width:52px;min-width:52px;max-width:52px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste 18 ST&nbsp;<span style="color:#d32f2f;">*</span></span></th>`;
-                html += `<th style="${th}text-align:right;background:#fff3e0;width:52px;min-width:52px;max-width:52px;">Streich<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">nächste 2 ST</span></th>`;
+                html += `<th style="${th}text-align:right;background:#e3f2fd;width:48px;min-width:48px;max-width:48px;">Gesamt<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">beste 18 ST&nbsp;<span style="color:#d32f2f;">*</span></span></th>`;
+                html += `<th style="${th}text-align:right;background:#fff3e0;width:65px;min-width:65px;max-width:65px;">Streich<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">nächste 2 ST</span></th>`;
                 html += `<th style="${th}text-align:right;background:#e8f5e9;width:72px;min-width:72px;max-width:72px;">Form<br><span style="font-weight:normal;color:#666;font-size:8px;white-space:nowrap;">Ø letzte 8 ST</span></th>`;
                 html += '</tr></thead><tbody>';
 
                 players.forEach((p, idx) => {
                     const rowBg = idx % 2 === 1 ? '#f5f5f5' : 'white';
                     const stickyRankRow = `position:sticky;left:0;background:${rowBg};z-index:1;`;
-                    const stickyNameRow = `position:sticky;left:30px;background:${rowBg};z-index:1;`;
+                    const stickyNameRow = `position:sticky;left:20px;background:${rowBg};z-index:1;`;
                     html += `<tr style="background:${rowBg};">`;
-                    html += `<td style="${cell}${stickyRankRow}text-align:right;">${p.displayRank}</td>`;
-                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${p.name}${p.tieDecided ? '<sup style="color:#d32f2f;">*</sup>' : ''}</td>`;
+                    html += `<td style="${cell}${stickyRankRow}width:15px;min-width:15px;max-width:15px;text-align:right;">${p.displayRank}</td>`;
+                    html += `<td style="${cell}${stickyNameRow}white-space:nowrap;width:135px;min-width:135px;max-width:135px;overflow:hidden;text-overflow:ellipsis;">${p.name}${p.tieDecided ? '<sup style="color:#d32f2f;">*</sup>' : ''}</td>`;
                     dates.forEach(d => {
                         const v = p.byDate[d.iso];
                         if (v != null) {
@@ -2131,9 +2131,9 @@ function updateRanking() {
                             html += `<td style="${cell}text-align:right;color:#bbb;width:26px;min-width:26px;max-width:26px;">-</td>`;
                         }
                     });
-                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;width:52px;min-width:52px;max-width:52px;">${p.total}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#e3f2fd;font-weight:bold;width:48px;min-width:48px;max-width:48px;">${p.total}</td>`;
                     const streichStr = p.streich.length ? p.streich.join(', ') : '-';
-                    html += `<td style="${cell}text-align:right;background:#fff3e0;color:#666;width:52px;min-width:52px;max-width:52px;word-break:break-word;">${streichStr}</td>`;
+                    html += `<td style="${cell}text-align:right;background:#fff3e0;color:#666;width:65px;min-width:65px;max-width:65px;word-break:break-word;">${streichStr}</td>`;
                     const formCell = p.form == null
                         ? '-'
                         : `<span style="display:inline-block;width:40px;text-align:right;">${p.formNum}</span><span style="display:inline-block;width:26px;text-align:left;padding-left:4px;box-sizing:border-box;font-weight:normal;color:#555;">${p.formRankStr}</span>`;
