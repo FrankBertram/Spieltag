@@ -285,6 +285,49 @@
               name: '43. Pulheimer Stadtmeisterschaft', extra: true }
         ];
 
+        // Saison (Jahr) für alle Wertungen. 24 Spieltage alle 2 Wochen ab dem 2. Dienstag im Januar,
+        // Online-Abende jeweils eine Woche später (zwischen zwei Spieltagen).
+        const SAISON_ERSTES_JAHR = 2026;
+        let saisonJahr = new Date().getFullYear();
+        function saisonTermine(year, offsetTage) {
+            const start = new Date(Date.UTC(year, 0, 1));
+            const bisDienstag = (2 - start.getUTCDay() + 7) % 7;
+            start.setUTCDate(1 + bisDienstag + 7 + (offsetTage || 0));
+            const dates = [];
+            for (let i = 0; i < 24; i++) {
+                const d = new Date(start);
+                d.setUTCDate(d.getUTCDate() + i * 14);
+                const iso = d.toISOString().slice(0, 10);
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const yyyy = String(d.getUTCFullYear());
+                dates.push({ iso, label: `${dd}.${mm}`, dd, mm, yyyy, full: `${dd}.${mm}.${yyyy}` });
+            }
+            return dates;
+        }
+        // Jahresauswahl in den Wertungs-Fenstern (select[data-saison-select]) befüllen
+        function fillSaisonSelects() {
+            const bis = Math.max(new Date().getFullYear(), saisonJahr);
+            document.querySelectorAll('select[data-saison-select]').forEach(sel => {
+                let html = '';
+                for (let y = bis; y >= SAISON_ERSTES_JAHR; y--) {
+                    html += `<option value="${y}" ${y === saisonJahr ? 'selected' : ''}>Saison ${y}</option>`;
+                }
+                sel.innerHTML = html;
+            });
+        }
+        function saisonGewechselt(sel) {
+            saisonJahr = Number(sel.value);
+            fillSaisonSelects();
+            const reload = sel.dataset.reload;
+            if (reload === 'online') {
+                if (window.__onlineTab === 'gesamt') window.showOnlineGesamt();
+                else window.showOnlineErfassung();
+            } else if (typeof window[reload] === 'function') {
+                window[reload]();
+            }
+        }
+
 	const datum = new Date();
         const datumText = datum.toLocaleDateString('de-DE', {
 	        day: '2-digit',
@@ -312,26 +355,19 @@
             const dateInput = document.getElementById('importDate');
             if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
 
-            // Spieltag-Dropdown füllen: alle 2 Wochen ab 13.01.2026 (Dienstag = Spieltag 1)
+            // Spieltag-Dropdown füllen: Spieltage der aktuellen Saison (alle 2 Wochen ab 2. Dienstag im Januar)
             const spieltagSelect = document.getElementById('spieltagSelect');
             if (spieltagSelect) {
-                const start = new Date(Date.UTC(2026, 0, 13));
                 const todayIso = dateInput ? dateInput.value : '';
-                for (let i = 0; i < 24; i++) {
-                    const d = new Date(start);
-                    d.setUTCDate(d.getUTCDate() + i * 14);
-                    const iso = d.toISOString().slice(0, 10);
-                    const dd = String(d.getUTCDate()).padStart(2, '0');
-                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                    const yyyy = d.getUTCFullYear();
+                saisonTermine(saisonJahr).forEach((d, i) => {
                     const opt = document.createElement('option');
-                    opt.value = iso;
-                    opt.textContent = `Spieltag ${i + 1} (${dd}.${mm}.${yyyy})`;
-                    if (iso === todayIso) opt.selected = true;
+                    opt.value = d.iso;
+                    opt.textContent = `Spieltag ${i + 1} (${d.full})`;
+                    if (d.iso === todayIso) opt.selected = true;
                     spieltagSelect.appendChild(opt);
-                }
-                // Zusatztermine (z. B. Stadtmeisterschaft) ans Ende hängen
-                EXTRA_SPIELTAGE.forEach(ex => {
+                });
+                // Zusatztermine (z. B. Stadtmeisterschaft) der Saison ans Ende hängen
+                EXTRA_SPIELTAGE.filter(ex => ex.yyyy === String(saisonJahr)).forEach(ex => {
                     const opt = document.createElement('option');
                     opt.value = ex.iso;
                     opt.textContent = `${ex.name} (${ex.dd}.${ex.mm}.${ex.yyyy})`;
@@ -1355,6 +1391,7 @@ function updateRanking() {
             </div>
             <h2 id="gesamtlisteHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Jahreswertung</h2>
             <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+<select data-saison-select data-reload="showGesamtliste" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <span id="gesamtlisteStand" style="font-size:16px;font-weight:700;letter-spacing:0.3px;">Stand: –</span>
                 <button onclick="exportGesamtlistePdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
                 <button onclick="closeGesamtliste()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
@@ -1371,8 +1408,10 @@ function updateRanking() {
             </div>
             <h2 id="tageswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Tageswertung</h2>
             <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+<select data-saison-select data-reload="showTageswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <select id="tageswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button onclick="exportTageswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="druckeTagesUmschlaege()" style="background:#ef6c00;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Umschläge</button>
                 <button onclick="exportTageswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
                 <button onclick="closeTageswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
             </div>
@@ -1388,8 +1427,10 @@ function updateRanking() {
             </div>
             <h2 id="monatswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Monatswertung</h2>
             <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+<select data-saison-select data-reload="showMonatswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <select id="monatswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button onclick="exportMonatswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
+                <button onclick="druckeMonatsUmschlaege()" style="background:#ef6c00;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Umschläge</button>
                 <button onclick="exportMonatswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
                 <button onclick="closeMonatswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
             </div>
@@ -1421,6 +1462,7 @@ function updateRanking() {
             </div>
             <h2 id="onlineHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Online-Wertung</h2>
             <div style="justify-self:end;display:flex;align-items:center;gap:8px;">
+<select data-saison-select data-reload="online" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button id="onlineTabErfassung" onclick="showOnlineErfassung()" style="background:#00897b;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Erfassung</button>
                 <button id="onlineTabGesamt" onclick="showOnlineGesamt()" style="background:#6a1b9a;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Gesamtstand</button>
                 <button id="onlinePdfBtn" onclick="exportOnlineGesamtPdf()" style="display:none;background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
@@ -1552,6 +1594,7 @@ function updateRanking() {
         };
 
         function openOverlay(id) {
+            fillSaisonSelects();
             document.getElementById(id).style.display = 'block';
             document.body.style.overflow = 'hidden';
         }
@@ -1774,17 +1817,8 @@ function updateRanking() {
             openOverlay('gesamtlisteModal');
             content.innerHTML = 'Lade Daten aus Firestore …';
             try {
-                // 24 Spieltag-Termine (alle 2 Wochen ab 13.01.2026)
-                const dates = [];
-                const start = new Date(Date.UTC(2026, 0, 13));
-                for (let i = 0; i < 24; i++) {
-                    const d = new Date(start);
-                    d.setUTCDate(d.getUTCDate() + i * 14);
-                    const iso = d.toISOString().slice(0, 10);
-                    const dd = String(d.getUTCDate()).padStart(2, '0');
-                    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                    dates.push({ iso, label: `${dd}.${mm}` });
-                }
+                // 24 Spieltag-Termine der gewählten Saison
+                const dates = saisonTermine(saisonJahr);
 
                 // Mitspieler-Liste aus Firestore: Dokument 'mitspieler/Liste', Feld 'Mitspieler' (Array)
                 // Alt: Array von Strings. Neu: Array von Objekten { name, eintritt, mitglied }.
@@ -2123,20 +2157,10 @@ function updateRanking() {
         };
 
         function getSpieltagDates() {
-            const dates = [];
-            const start = new Date(Date.UTC(2026, 0, 13));
-            for (let i = 0; i < 24; i++) {
-                const d = new Date(start);
-                d.setUTCDate(d.getUTCDate() + i * 14);
-                const iso = d.toISOString().slice(0, 10);
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                const yyyy = d.getUTCFullYear();
-                dates.push({ iso, label: `${dd}.${mm}`, dd, mm, yyyy: String(yyyy) });
-            }
+            const dates = saisonTermine(saisonJahr);
             // Zusatztermine am Ende – bewusst nach den 24 regulären Spieltagen,
             // damit die reguläre Spieltag-Nummerierung (1–24) erhalten bleibt.
-            EXTRA_SPIELTAGE.forEach(ex => {
+            EXTRA_SPIELTAGE.filter(ex => ex.yyyy === String(saisonJahr)).forEach(ex => {
                 dates.push({ iso: ex.iso, label: ex.label, dd: ex.dd, mm: ex.mm, yyyy: ex.yyyy, name: ex.name, extra: true });
             });
             return dates;
@@ -2583,6 +2607,101 @@ function updateRanking() {
             return drawNativePortraitTable(cols, players, headingText, filename);
         };
 
+        // ===== Umschläge (C6 quer) für die 3 Besten der Tages-/Monatswertung =====
+        // Pott: Spieltag 2 € je Teilnehmer, Monat 1 € je Teilnehmer der Spieltage des Monats.
+        // Verteilung 3/6, 2/6, 1/6 auf 0,50 € gerundet (Rundungsrest an Platz 1).
+        // Bei Gleichstand teilen sich die Betroffenen ihre Anteile.
+        function umschlagGewinne(pott, top) {
+            const halb = v => Math.round(v * 2) / 2;
+            const g2 = halb(pott * 2 / 6);
+            const g3 = halb(pott / 6);
+            const anteile = [pott - g2 - g3, g2, g3];
+            while (anteile.length < top.length) anteile.push(0); // Gleichstand auf Platz 3
+            const gewinne = anteile.slice(0, top.length);
+            let i = 0;
+            while (i < top.length) {
+                let j = i;
+                while (j + 1 < top.length && top[j + 1].rank === top[i].rank) j++;
+                if (j > i) {
+                    const summe = anteile.slice(i, j + 1).reduce((a, b) => a + b, 0);
+                    for (let k = i; k <= j; k++) gewinne[k] = halb(summe / (j - i + 1));
+                }
+                i = j + 1;
+            }
+            return gewinne;
+        }
+
+        function druckeUmschlaege(titel, eintraege, pott) {
+            const euro = v => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+            const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const gewinne = umschlagGewinne(pott, eintraege);
+            const seiten = eintraege.map((p, i) => `
+<div class="seite">
+  <div class="kopf"><img src="${window.SKAT_LOGO_DATA}" alt=""><span>1. Sintherner Skatclub</span></div>
+  <div class="zeile">${esc(titel)}</div>
+  <div class="zeile">${p.rank}. Platz:&nbsp; ${Number(p.punkte).toLocaleString('de-DE')}&nbsp; Punkte</div>
+  <div class="zeile name">${esc(p.name)}</div>
+  <div class="pott">Pott: ${euro(pott)} =&gt; Gewinn: ${euro(gewinne[i])}</div>
+</div>`).join('');
+            const html = `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Umschläge – ${esc(titel)}</title>
+<style>
+  @page { size: 162mm 114mm; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Monotype Corsiva', 'Lucida Calligraphy', 'Lucida Handwriting', cursive; color: #000; }
+  .seite { width: 162mm; height: 114mm; padding: 6mm 6mm 12mm 6mm; position: relative; page-break-after: always; break-after: page; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+  .seite:last-child { page-break-after: auto; break-after: auto; }
+  .kopf { display: flex; align-items: center; justify-content: center; gap: 5mm; font-size: 36pt; margin-bottom: 6mm; white-space: nowrap; }
+  .kopf img { height: 19mm; width: auto; }
+  .zeile { font-size: 26pt; font-weight: bold; margin: 0 0 4mm 0; line-height: 1.15; }
+  .name { font-size: 30pt; margin-top: 2mm; }
+  .pott { position: absolute; right: 8mm; bottom: 6mm; text-align: right; font-size: 8pt; font-style: italic; }
+  @media screen { body { background: #888; } .seite { background: white; margin: 10px auto; box-shadow: 0 0 6px rgba(0,0,0,.4); } }
+</style></head><body>${seiten}
+<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };<\/script>
+</body></html>`;
+            const w = window.open('', '_blank');
+            if (!w) { alert('Das Druckfenster wurde blockiert – bitte Pop-ups für diese Seite erlauben.'); return; }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+        }
+
+        // Die ersten 3 Plätze (bei Gleichstand auf Platz 3 alle Gleichplatzierten)
+        function umschlagTop(players, scoreKey) {
+            const top = players.slice(0, 3);
+            while (players.length > top.length && players[top.length][scoreKey] === top[top.length - 1][scoreKey]) {
+                top.push(players[top.length]);
+            }
+            return top.map(p => ({ name: p.name, rank: p.rank, punkte: p[scoreKey] }));
+        }
+
+        window.druckeTagesUmschlaege = function() {
+            const data = window.__tagesRender;
+            if (!data) { alert('Daten noch nicht geladen.'); return; }
+            if (!data.dayHasData) { alert('Für diesen Spieltag liegen noch keine Ergebnisse vor.'); return; }
+            const { players, date, stNumber } = data;
+            const teilnehmer = players.filter(p => p.hasEntry).length;
+            const titel = date.extra
+                ? `${date.name} vom ${date.dd}.${date.mm}.${date.yyyy}`
+                : `${stNumber}. Spieltag vom ${date.dd}.${date.mm}.${date.yyyy}`;
+            druckeUmschlaege(titel, umschlagTop(players, 'sum'), teilnehmer * 2);
+        };
+
+        window.druckeMonatsUmschlaege = function() {
+            const data = window.__monatsRender;
+            if (!data || !monatsData) { alert('Daten noch nicht geladen.'); return; }
+            if (!data.monthHasAnyData) { alert('Für diesen Monat liegen noch keine Ergebnisse vor.'); return; }
+            const { players, monthDates, monatName, ref } = data;
+            // 1 € je Teilnehmer und Spieltag des Monats
+            let pott = 0;
+            monthDates.forEach(d => {
+                [...monatsData.allNames].forEach(name => {
+                    if ((monatsData.playerData[name] || {})[d.iso]) pott += 1;
+                });
+            });
+            druckeUmschlaege(`Monatswertung - ${monatName} ${ref.yyyy}`, umschlagTop(players, 'total'), pott);
+        };
+
         // Excel-Sheet-Namen bereinigen: Excel verbietet : \ / ? * [ ] und max. 31 Zeichen
         function sanitizeSheetName(name) {
             return String(name || 'Tabelle').replace(/[:\\/?*\[\]]/g, ' ').trim().slice(0, 31) || 'Tabelle';
@@ -3024,6 +3143,7 @@ function updateRanking() {
 
             const [yyyy, mm, dd] = spieltagIso.split('-');
             const spieltagDe = `${dd}.${mm}.${yyyy}`;
+            saisonJahr = Number(yyyy);
             const allDates = getSpieltagDates();
             const spieltagIdx = allDates.findIndex(d => d.iso === spieltagIso);
             const selDate = spieltagIdx >= 0 ? allDates[spieltagIdx] : null;
@@ -3309,19 +3429,9 @@ function updateRanking() {
         // Felder { datum, spieler: [{ name, punkte }] }. Teilnehmer = Mitspieler mit online=true.
         const ONLINE_DEFAULT_PUNKTE = 700;
         const ONLINE_KEEP_BEST = 18;
-        // 24 Online-Termine (alle 2 Wochen ab 20.01.2026, jeweils zwischen zwei Spieltagen)
+        // 24 Online-Termine der gewählten Saison (je eine Woche nach dem Spieltag)
         function getOnlineDates() {
-            const dates = [];
-            const start = new Date(Date.UTC(2026, 0, 20));
-            for (let i = 0; i < 24; i++) {
-                const d = new Date(start);
-                d.setUTCDate(d.getUTCDate() + i * 14);
-                const iso = d.toISOString().slice(0, 10);
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-                dates.push({ iso, label: `${dd}.${mm}`, full: `${dd}.${mm}.${iso.slice(0, 4)}` });
-            }
-            return dates;
+            return saisonTermine(saisonJahr, 7);
         }
 
         async function loadOnlineTeilnehmer() {
@@ -3345,6 +3455,7 @@ function updateRanking() {
         };
 
         function setOnlineTab(tab) {
+            window.__onlineTab = tab;
             document.getElementById('onlineHeading').textContent =
                 tab === 'erfassung' ? 'Online-Wertung – Erfassung' : 'Online-Wertung – Gesamtstand';
             document.getElementById('onlineTabErfassung').style.opacity = tab === 'erfassung' ? '1' : '0.6';
@@ -3365,7 +3476,7 @@ function updateRanking() {
                 const dates = getOnlineDates();
                 // Vorauswahl: letzter Online-Termin bis heute, sonst der erste
                 const todayIso = new Date().toISOString().slice(0, 10);
-                if (!onlineErfassung.iso) {
+                if (!dates.some(d => d.iso === onlineErfassung.iso)) {
                     const past = dates.filter(d => d.iso <= todayIso);
                     onlineErfassung.iso = past.length ? past[past.length - 1].iso : dates[0].iso;
                 }
