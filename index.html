@@ -99,10 +99,7 @@
 		}		
 		
 .file-block {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 0px;
+    margin-left: auto;  /* rechts neben dem Titel, bei wenig Platz in die nächste Zeile */
     background: white;
     padding: 10px;
     border-radius: 8px;
@@ -111,9 +108,9 @@
 }
 
 .header {
-    position: relative;  /* Für absolute Positionierung */
-    padding-right: 450px;  /* Platz für File-Block */
+    position: relative;
     min-height: 50px;
+    row-gap: 8px;
 }		
 		.thick-line {border-top: 3px solid #333 !important;}
     </style>
@@ -131,36 +128,38 @@
     </script>
 
     <div class="header">
-        <img data-skat-logo alt="Skat-Logo">
-        <h3>1. Sintherner Skatclub – 2 Serien<span id="aktuelles-datum"></span></h3>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <img data-skat-logo alt="Skat-Logo">
+            <h3 style="margin:0;white-space:nowrap;">1. Sintherner Skatclub<span id="aktuelles-datum" style="display:none;"></span></h3>
+        </div>
         <div id="fileSection" class="file-block" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <button onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="showGesamtliste()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;"><line x1="2" y1="3.5" x2="12" y2="3.5"/><line x1="2" y1="7" x2="12" y2="7"/><line x1="2" y1="10.5" x2="12" y2="10.5"/></svg>
                 Gesamt
             </button>
-            <button onclick="showTageswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="showTageswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/><rect x="5.5" y="8" width="3" height="2.5" fill="white" stroke="none"/></svg>
                 Spieltag
             </button>
-            <button onclick="showMonatswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="showMonatswertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.2" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3" width="10" height="9" rx="1"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="6" x2="5" y2="12"/><line x1="9" y1="6" x2="9" y2="12"/><line x1="2" y1="9" x2="12" y2="9"/><line x1="5" y1="2" x2="5" y2="4"/><line x1="9" y1="2" x2="9" y2="4"/></svg>
                 Monat
             </button>
-            <button onclick="showOnlineWertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="showOnlineWertung()" style="background:#6a1b9a;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><rect x="1.5" y="2.5" width="11" height="7" rx="1"/><line x1="5" y1="12" x2="9" y2="12"/><line x1="7" y1="9.5" x2="7" y2="12"/></svg>
                 Online
             </button>
-            <button onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="showMitspielerVerwaltung()" style="background:#00897b;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" aria-hidden="true" style="flex-shrink:0;"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 12 C2.5 9.5 4.5 8.5 7 8.5 C9.5 8.5 11.5 9.5 11.5 12"/></svg>
                 Mitspieler
             </button>
-            <button onclick="sendSpieltagEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="sendSpieltagEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
-                E-Mail
+                E-Mail (C)
             </button>
-            <button onclick="sendOnlineEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:120px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
+            <button onclick="sendOnlineEmail()" style="background:#1976d2;color:white;padding:6px 10px;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:105px;margin:0;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;box-sizing:border-box;">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><rect x="2" y="3.5" width="10" height="7" rx="1"/><polyline points="2.5,4 7,7.5 11.5,4"/></svg>
-                E-Mail Online
+                E-Mail (O)
             </button>
         </div>
     </div>
