@@ -1400,17 +1400,18 @@ function updateRanking() {
     </div>
 
     <div id="tageswertungModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
             <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
                 <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
                 <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
             </div>
             <h2 id="tageswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Tageswertung</h2>
-            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
-<select data-saison-select data-reload="showTageswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
+            <div style="justify-self:end;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:0;">
+                <select data-saison-select data-reload="showTageswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <select id="tageswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button onclick="exportTageswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
                 <button onclick="druckeTagesUmschlaege()" style="background:#ef6c00;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Umschläge</button>
+                <button onclick="showSpieltagUebersicht()" style="background:#00897b;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Übersicht</button>
                 <button onclick="showSpieltagListen()" style="background:#5d4037;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Listen</button>
                 <button onclick="exportTageswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
                 <button onclick="closeTageswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
@@ -1420,14 +1421,14 @@ function updateRanking() {
     </div>
 
     <div id="monatswertungModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
             <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
                 <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
                 <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
             </div>
             <h2 id="monatswertungHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Monatswertung</h2>
-            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
-<select data-saison-select data-reload="showMonatswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
+            <div style="justify-self:end;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;min-width:0;">
+                <select data-saison-select data-reload="showMonatswertung" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <select id="monatswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button onclick="exportMonatswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
                 <button onclick="druckeMonatsUmschlaege()" style="background:#ef6c00;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Umschläge</button>
@@ -1436,6 +1437,21 @@ function updateRanking() {
             </div>
         </div>
         <div id="monatswertungContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
+    </div>
+
+    <div id="uebersichtModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:15px;gap:10px;font-family:Arial,sans-serif;">
+            <div style="display:flex;align-items:center;gap:12px;justify-self:start;">
+                <img data-skat-logo alt="Skat-Logo" style="height:44px;width:auto;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:0.3px;">1. Sintherner Skatclub</span>
+            </div>
+            <h2 id="uebersichtHeading" style="margin:0;font-size:22px;font-weight:700;text-align:center;letter-spacing:0.3px;">Spieltag-Übersicht</h2>
+            <div style="justify-self:end;display:flex;align-items:center;gap:12px;">
+                <select data-saison-select data-reload="showSpieltagUebersicht" onchange="saisonGewechselt(this)" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
+                <button onclick="closeSpieltagUebersicht()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+            </div>
+        </div>
+        <div id="uebersichtContent" style="font-size:14px;font-family:Arial,sans-serif;">Lade …</div>
     </div>
 
     <div id="mitspielerVerwModal" style="display:none;position:fixed;inset:0;background:white;z-index:2000;overflow:auto;padding:20px;box-sizing:border-box;">
@@ -1623,7 +1639,7 @@ function updateRanking() {
         }
         function closeOverlay(id) {
             document.getElementById(id).style.display = 'none';
-            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal','onlineModal']
+            const anyOpen = ['gesamtlisteModal','tageswertungModal','monatswertungModal','mitspielerVerwModal','onlineModal','uebersichtModal']
                 .some(m => {
                     const el = document.getElementById(m);
                     return el && el.style.display && el.style.display !== 'none';
@@ -2675,15 +2691,17 @@ function updateRanking() {
             listenAktuell.url = '';
         }
 
-        window.showSpieltagListen = async function() {
-            if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
-            const idx = Number(document.getElementById('tageswertungSelect').value);
-            const d = tagesData.dates[idx];
+        // Ohne Argument: der in der Tageswertung gewählte Spieltag; sonst { iso, titel } (z. B. aus der Übersicht)
+        window.showSpieltagListen = async function(datum) {
+            let d = datum;
+            if (!d) {
+                if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
+                const idx = Number(document.getElementById('tageswertungSelect').value);
+                const t = tagesData.dates[idx];
+                d = { iso: t.iso, titel: t.extra ? `${t.name} (${t.dd}.${t.mm}.${t.yyyy})` : `${idx + 1}. Spieltag (${t.dd}.${t.mm}.${t.yyyy})` };
+            }
             listenUrlFreigeben();
-            listenAktuell = {
-                iso: d.iso, meta: null, url: '',
-                titel: d.extra ? `${d.name} (${d.dd}.${d.mm}.${d.yyyy})` : `${idx + 1}. Spieltag (${d.dd}.${d.mm}.${d.yyyy})`
-            };
+            listenAktuell = { iso: d.iso, titel: d.titel, meta: null, url: '', geaendert: false };
             document.getElementById('listenTitel').textContent = `Spiellisten – ${listenAktuell.titel}`;
             document.getElementById('listenModal').style.display = 'flex';
             listenSetBusy('Lade …');
@@ -2700,6 +2718,9 @@ function updateRanking() {
 
         window.closeListen = function() {
             document.getElementById('listenModal').style.display = 'none';
+            // Übersicht aktualisieren, falls dort eine Liste hochgeladen oder gelöscht wurde
+            const ue = document.getElementById('uebersichtModal');
+            if (listenAktuell.geaendert && ue && ue.style.display === 'block') window.showSpieltagUebersicht();
         };
 
         async function listenBlobLaden() {
@@ -2783,11 +2804,90 @@ function updateRanking() {
                 listenUrlFreigeben();
                 const snap = await getDoc(doc(db, 'spieltaglisten', iso));
                 listenAktuell.meta = snap.exists() ? snap.data() : meta;
+                listenAktuell.geaendert = true;
                 listenRenderInfo();
             } catch (err) {
                 console.error(err);
                 alert('Hochladen fehlgeschlagen: ' + (err.message || err));
                 listenRenderInfo();
+            }
+        };
+
+        // ===== Spieltag-Übersicht: reguläre Spieltage, die ersten 3 Plätze, Spielliste ja/nein =====
+        window.closeSpieltagUebersicht = function() {
+            closeOverlay('uebersichtModal');
+        };
+
+        window.showSpieltagUebersicht = async function() {
+            const content = document.getElementById('uebersichtContent');
+            openOverlay('uebersichtModal');
+            document.getElementById('uebersichtHeading').textContent = `Spieltag-Übersicht ${saisonJahr}`;
+            content.innerHTML = 'Lade Daten aus Firestore …';
+            try {
+                const dates = getSpieltagDates().filter(d => !d.extra);
+                let listenFehler = '';
+                const [{ playerData, datesWithData }, listenSnap] = await Promise.all([
+                    loadAllPlayersAndResults(dates),
+                    getDocs(collection(db, 'spieltaglisten')).catch(err => { listenFehler = err.message || String(err); return null; })
+                ]);
+                const listen = new Set();
+                if (listenSnap) listenSnap.forEach(ds => listen.add(ds.id));
+                const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+                const cell = 'padding:6px 10px;border:1px solid #ddd;vertical-align:top;';
+                const th = 'background:#f2f2f2;font-weight:bold;' + cell;
+                // Feste Spaltenbreiten: schmale Info-Spalten, die drei Platz-Spalten teilen sich den Rest gleichmäßig
+                let html = '<table style="border-collapse:collapse;width:100%;table-layout:fixed;font-size:14px;font-family:Arial,sans-serif;"><thead><tr>';
+                html += `<th style="${th}width:28px;text-align:right;">ST</th>`;
+                html += `<th style="${th}width:82px;text-align:left;">Datum</th>`;
+                html += `<th style="${th}width:52px;text-align:right;">Spieler</th>`;
+                // width:auto hebt die globale th:nth-child(4)-Breite (20px) der Rangliste auf
+                ['1. Platz', '2. Platz', '3. Platz'].forEach(t => { html += `<th style="${th}width:auto;text-align:left;">${t}</th>`; });
+                html += `<th style="${th}width:85px;text-align:center;">Spielliste</th>`;
+                html += '</tr></thead><tbody>';
+                let gespielt = 0, mitListe = 0;
+                dates.forEach((d, i) => {
+                    const hatDaten = datesWithData.has(d.iso);
+                    const hatListe = listen.has(d.iso);
+                    // Teilnehmer = alle mit Eintrag an diesem Tag; fehlende Serie 2 zählt 750 wie in der Tageswertung
+                    const spieler = [];
+                    Object.keys(playerData).forEach(name => {
+                        const day = playerData[name][d.iso];
+                        if (!day) return;
+                        const s1 = '1' in day ? day['1'] : 0;
+                        const s2 = '2' in day ? day['2'] : 750;
+                        spieler.push({ name, sum: s1 + s2 });
+                    });
+                    if (hatDaten) { gespielt++; rankPlayers(spieler, 'sum'); }
+                    if (hatListe) mitListe++;
+                    const titel = `${i + 1}. Spieltag (${d.full})`;
+                    const rowBg = i % 2 === 1 ? '#f5f5f5' : 'white';
+                    const grau = hatDaten ? '' : 'color:#aaa;';
+                    html += `<tr style="background:${rowBg};${grau}">`;
+                    html += `<td style="${cell}text-align:right;">${i + 1}</td>`;
+                    html += `<td style="${cell}">${d.full}</td>`;
+                    html += `<td style="${cell}text-align:right;">${hatDaten ? spieler.length : ''}</td>`;
+                    [1, 2, 3].forEach(platz => {
+                        // Bei Gleichstand stehen alle Gleichplatzierten auf ihrem gemeinsamen Platz
+                        const namen = hatDaten ? spieler.filter(p => p.rank === platz) : [];
+                        html += `<td style="${cell}text-align:left;">` + namen.map(p =>
+                            `${esc(p.name)} <span style="color:#666;white-space:nowrap;">(${p.sum.toLocaleString('de-DE')})</span>`).join('<br>') + '</td>';
+                    });
+                    const listeArg = esc(JSON.stringify({ iso: d.iso, titel })).replace(/"/g, '&quot;');
+                    html += `<td style="${cell}text-align:center;">` + (hatListe
+                        ? `<a href="#" onclick="showSpieltagListen(${listeArg});return false;" style="color:#2e7d32;font-weight:bold;text-decoration:none;">✓ ansehen</a>`
+                        : (hatDaten ? `<a href="#" onclick="showSpieltagListen(${listeArg});return false;" style="color:#d32f2f;text-decoration:none;">✗ fehlt</a>` : '')) + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                html += `<p style="margin:10px 0 0;font-size:13px;color:#555;">${gespielt} Spieltage gespielt, für ${mitListe} liegt eine Spielliste vor.</p>`;
+                if (listenFehler) {
+                    html += `<p style="margin:6px 0 0;font-size:13px;color:#d32f2f;">Spiellisten konnten nicht geprüft werden (${esc(listenFehler)}). Ist die Firestore-Regel für „spieltaglisten“ veröffentlicht?</p>`;
+                }
+                content.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                content.innerHTML = `<p style="color:#d32f2f;">Fehler beim Laden: ${(err && err.message) ? err.message : err}</p>`;
             }
         };
 
@@ -2804,6 +2904,7 @@ function updateRanking() {
                 }
                 listenUrlFreigeben();
                 listenAktuell.meta = null;
+                listenAktuell.geaendert = true;
                 listenRenderInfo();
             } catch (err) {
                 console.error(err);
