@@ -1411,6 +1411,7 @@ function updateRanking() {
                 <select id="tageswertungSelect" style="font-size:14px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;width:auto;margin:0;font-family:Arial,sans-serif;"></select>
                 <button onclick="exportTageswertungPdf()" style="background:#1976d2;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">PDF</button>
                 <button onclick="druckeTagesUmschlaege()" style="background:#ef6c00;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Umschläge</button>
+                <button onclick="showSpieltagListen()" style="background:#5d4037;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Listen</button>
                 <button onclick="exportTageswertungExcel()" style="background:#2e7d32;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Excel</button>
                 <button onclick="closeTageswertung()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
             </div>
@@ -1517,6 +1518,29 @@ function updateRanking() {
         <div id="tischverteilungGrid" class="tables-grid" style="font-family:Arial,sans-serif;"></div>
     </div>
 
+    <div id="listenModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2500;align-items:center;justify-content:center;font-family:Arial,sans-serif;">
+        <div style="background:white;padding:20px;border-radius:8px;max-width:440px;width:90%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <h3 id="listenTitel" style="margin:0 0 10px 0;">Spiellisten</h3>
+            <div id="listenInfo" style="font-size:14px;margin-bottom:12px;line-height:1.5;">Lade …</div>
+            <input type="file" id="listenDatei" accept="application/pdf,.pdf" style="display:none;" onchange="ladeListenHoch(this)">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button id="listenAnzeigenBtn" onclick="zeigeListen()" style="background:#1565c0;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Anzeigen</button>
+                <button id="listenDownloadBtn" onclick="ladeListenHerunter()" style="background:#1976d2;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Herunterladen</button>
+                <button id="listenUploadBtn" onclick="document.getElementById('listenDatei').click()" style="background:#388e3c;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">PDF hochladen</button>
+                <button id="listenLoeschenBtn" onclick="loescheListen()" style="background:#d32f2f;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Löschen</button>
+                <button onclick="closeListen()" style="background:#9e9e9e;color:white;padding:10px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:100%;margin:0;">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="listenViewer" style="display:none;position:fixed;inset:0;background:#333;z-index:3000;flex-direction:column;font-family:Arial,sans-serif;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:#222;color:white;">
+            <span id="listenViewerTitel" style="font-size:15px;font-weight:bold;"></span>
+            <button onclick="closeListenViewer()" style="background:#9e9e9e;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px;width:auto;margin:0;">Schließen</button>
+        </div>
+        <iframe id="listenViewerFrame" title="Spiellisten" style="flex:1;border:0;width:100%;background:white;"></iframe>
+    </div>
+
     <div id="importModeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
         <div style="background:white;padding:20px;border-radius:8px;max-width:400px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
             <h3 style="margin:0 0 10px 0;">Spieltag laden</h3>
@@ -1544,7 +1568,7 @@ function updateRanking() {
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, addDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+        import { getFirestore, collection, query, where, getDocs, getDoc, setDoc, addDoc, deleteDoc, doc, serverTimestamp, Bytes } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
         const firebaseConfig = {
@@ -2604,6 +2628,188 @@ function updateRanking() {
             cols.push({ header: 'Gesamt', w: 26, align: 'right', headerFill: [227, 242, 253], fill: [227, 242, 253], render: p => monthHasAnyData ? { text: p.total, bold: true } : dash });
             const filename = `Monatssieger ${monatName}.pdf`;
             return drawNativePortraitTable(cols, players, headingText, filename);
+        };
+
+        // ===== Handschriftliche Spiellisten (PDF vom Scanner) pro Spieltag =====
+        // Firestore: 'spieltaglisten/<iso>' = { datum, dateiname, groesse, teile, hochgeladen, uid },
+        // Inhalt in Stücken unter 1 MB: 'spieltaglisten/<iso>/teile/<n>' = { index, daten: Bytes }.
+        const LISTEN_TEIL_GROESSE = 900 * 1024;
+        const LISTEN_MAX_GROESSE = 20 * 1024 * 1024;
+        let listenAktuell = { iso: '', titel: '', meta: null, url: '' };
+
+        function listenGroesseText(bytes) {
+            return bytes >= 1024 * 1024
+                ? (bytes / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' MB'
+                : Math.round(bytes / 1024) + ' KB';
+        }
+
+        function listenSetBusy(text) {
+            document.getElementById('listenInfo').innerHTML = text;
+            ['listenAnzeigenBtn', 'listenDownloadBtn', 'listenUploadBtn', 'listenLoeschenBtn']
+                .forEach(id => { document.getElementById(id).disabled = true; });
+        }
+
+        function listenRenderInfo() {
+            const m = listenAktuell.meta;
+            const info = document.getElementById('listenInfo');
+            if (m) {
+                const ts = m.hochgeladen && typeof m.hochgeladen.toDate === 'function'
+                    ? m.hochgeladen.toDate().toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+                const name = String(m.dateiname || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                info.innerHTML = `<b>Vorhanden:</b> ${name}<br>${listenGroesseText(m.groesse || 0)}${ts ? ` · hochgeladen am ${ts}` : ''}`;
+            } else {
+                info.innerHTML = 'Für diesen Spieltag sind noch keine Listen hinterlegt.';
+            }
+            document.getElementById('listenAnzeigenBtn').disabled = !m;
+            document.getElementById('listenDownloadBtn').disabled = !m;
+            document.getElementById('listenLoeschenBtn').disabled = !m;
+            document.getElementById('listenUploadBtn').disabled = false;
+            document.getElementById('listenUploadBtn').textContent = m ? 'PDF ersetzen' : 'PDF hochladen';
+            ['listenAnzeigenBtn', 'listenDownloadBtn', 'listenLoeschenBtn'].forEach(id => {
+                document.getElementById(id).style.opacity = m ? '1' : '0.5';
+            });
+        }
+
+        function listenUrlFreigeben() {
+            if (listenAktuell.url) URL.revokeObjectURL(listenAktuell.url);
+            listenAktuell.url = '';
+        }
+
+        window.showSpieltagListen = async function() {
+            if (!tagesData) { alert('Daten noch nicht geladen.'); return; }
+            const idx = Number(document.getElementById('tageswertungSelect').value);
+            const d = tagesData.dates[idx];
+            listenUrlFreigeben();
+            listenAktuell = {
+                iso: d.iso, meta: null, url: '',
+                titel: d.extra ? `${d.name} (${d.dd}.${d.mm}.${d.yyyy})` : `${idx + 1}. Spieltag (${d.dd}.${d.mm}.${d.yyyy})`
+            };
+            document.getElementById('listenTitel').textContent = `Spiellisten – ${listenAktuell.titel}`;
+            document.getElementById('listenModal').style.display = 'flex';
+            listenSetBusy('Lade …');
+            try {
+                const snap = await getDoc(doc(db, 'spieltaglisten', d.iso));
+                listenAktuell.meta = snap.exists() ? snap.data() : null;
+                listenRenderInfo();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('listenInfo').innerHTML = `<span style="color:#d32f2f;">Fehler beim Laden: ${err.message || err}</span>`;
+                document.getElementById('listenUploadBtn').disabled = false;
+            }
+        };
+
+        window.closeListen = function() {
+            document.getElementById('listenModal').style.display = 'none';
+        };
+
+        async function listenBlobLaden() {
+            if (listenAktuell.url) return listenAktuell.url;
+            const m = listenAktuell.meta;
+            const teile = await Promise.all(Array.from({ length: m.teile }, (_, i) =>
+                getDoc(doc(db, 'spieltaglisten', listenAktuell.iso, 'teile', String(i)))));
+            const bytes = teile.map((s, i) => {
+                if (!s.exists()) throw new Error(`Teil ${i + 1} von ${m.teile} fehlt – bitte die PDF erneut hochladen.`);
+                return s.data().daten.toUint8Array();
+            });
+            listenAktuell.url = URL.createObjectURL(new Blob(bytes, { type: 'application/pdf' }));
+            return listenAktuell.url;
+        }
+
+        window.zeigeListen = async function() {
+            if (!listenAktuell.meta) return;
+            listenSetBusy('Lade PDF …');
+            try {
+                const url = await listenBlobLaden();
+                document.getElementById('listenViewerTitel').textContent = `Spiellisten – ${listenAktuell.titel}`;
+                document.getElementById('listenViewerFrame').src = url;
+                document.getElementById('listenViewer').style.display = 'flex';
+            } catch (err) {
+                console.error(err);
+                alert('PDF konnte nicht geladen werden: ' + (err.message || err));
+            }
+            listenRenderInfo();
+        };
+
+        window.closeListenViewer = function() {
+            document.getElementById('listenViewer').style.display = 'none';
+            document.getElementById('listenViewerFrame').src = 'about:blank';
+        };
+
+        window.ladeListenHerunter = async function() {
+            if (!listenAktuell.meta) return;
+            listenSetBusy('Lade PDF …');
+            try {
+                const url = await listenBlobLaden();
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Spiellisten ${listenAktuell.titel}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (err) {
+                console.error(err);
+                alert('PDF konnte nicht geladen werden: ' + (err.message || err));
+            }
+            listenRenderInfo();
+        };
+
+        window.ladeListenHoch = async function(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            if (!auth.currentUser) { alert('Bitte zuerst mit Google anmelden, um hochladen zu können.'); return; }
+            if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { alert('Bitte eine PDF-Datei auswählen.'); return; }
+            if (file.size > LISTEN_MAX_GROESSE) {
+                alert(`Die Datei ist ${listenGroesseText(file.size)} groß (maximal ${listenGroesseText(LISTEN_MAX_GROESSE)}). Bitte am Scanner eine geringere Auflösung (z. B. 200 dpi, Graustufen) wählen.`);
+                return;
+            }
+            const alt = listenAktuell.meta;
+            if (alt && !confirm(`Für ${listenAktuell.titel} ist bereits „${alt.dateiname}“ hinterlegt. Ersetzen?`)) return;
+            const iso = listenAktuell.iso;
+            try {
+                const daten = new Uint8Array(await file.arrayBuffer());
+                const anzahl = Math.ceil(daten.length / LISTEN_TEIL_GROESSE);
+                for (let i = 0; i < anzahl; i++) {
+                    listenSetBusy(`Lade hoch … Teil ${i + 1} von ${anzahl}`);
+                    const stueck = daten.subarray(i * LISTEN_TEIL_GROESSE, (i + 1) * LISTEN_TEIL_GROESSE);
+                    await setDoc(doc(db, 'spieltaglisten', iso, 'teile', String(i)), { index: i, daten: Bytes.fromUint8Array(stueck) });
+                }
+                // Überzählige Teile einer früheren, größeren Datei entfernen
+                for (let i = anzahl; alt && i < alt.teile; i++) {
+                    await deleteDoc(doc(db, 'spieltaglisten', iso, 'teile', String(i)));
+                }
+                const meta = { datum: iso, dateiname: file.name, groesse: file.size, teile: anzahl, hochgeladen: serverTimestamp(), uid: auth.currentUser.uid };
+                await setDoc(doc(db, 'spieltaglisten', iso), meta);
+                listenUrlFreigeben();
+                const snap = await getDoc(doc(db, 'spieltaglisten', iso));
+                listenAktuell.meta = snap.exists() ? snap.data() : meta;
+                listenRenderInfo();
+            } catch (err) {
+                console.error(err);
+                alert('Hochladen fehlgeschlagen: ' + (err.message || err));
+                listenRenderInfo();
+            }
+        };
+
+        window.loescheListen = async function() {
+            const m = listenAktuell.meta;
+            if (!m) return;
+            if (!auth.currentUser) { alert('Bitte zuerst mit Google anmelden, um löschen zu können.'); return; }
+            if (!confirm(`Spiellisten „${m.dateiname}“ für ${listenAktuell.titel} wirklich löschen?`)) return;
+            listenSetBusy('Lösche …');
+            try {
+                await deleteDoc(doc(db, 'spieltaglisten', listenAktuell.iso));
+                for (let i = 0; i < m.teile; i++) {
+                    await deleteDoc(doc(db, 'spieltaglisten', listenAktuell.iso, 'teile', String(i)));
+                }
+                listenUrlFreigeben();
+                listenAktuell.meta = null;
+                listenRenderInfo();
+            } catch (err) {
+                console.error(err);
+                alert('Löschen fehlgeschlagen: ' + (err.message || err));
+                listenRenderInfo();
+            }
         };
 
         // ===== Umschläge (C6 quer) für die 3 Besten der Tages-/Monatswertung =====
