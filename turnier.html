@@ -593,7 +593,7 @@
 <!-- Firebase / Firestore (ES-Modul via CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp }
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
     from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
@@ -624,18 +624,31 @@
     if (typeof window.onAuthChanged === 'function') window.onAuthChanged(user);
   });
 
-  // Wird vom Haupt-Script (saveDraw) aufgerufen; legt ein Dokument pro Auslosung an.
+  // Wird vom Haupt-Script (saveDraw) aufgerufen. Feste Dokument-ID je Tag und Serie
+  // (z. B. 2026-12-15_S1): erneutes Speichern überschreibt statt Duplikate anzulegen.
   // Login ist optional: ist jemand angemeldet, werden uid/email mitgespeichert.
   window.saveTurnierToFirestore = async function(data) {
     const user = auth.currentUser;
-    const ref = await addDoc(collection(db, "turnierauslosungen"), {
+    const d = new Date();
+    const datum = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const id = `${datum}_S${data.serie}`;
+    const ref = doc(db, "turnierauslosungen", id);
+    // Serie 2 kann auch als Setzliste nach Serie 1 gespeichert sein (art 'setzliste'):
+    // die nur nach Rückfrage durch die Auslosung ersetzen.
+    const vorhanden = await getDoc(ref);
+    if (vorhanden.exists() && vorhanden.data().art === 'setzliste') {
+      if (!confirm('Für heute ist Serie ' + data.serie + ' bereits als Setzliste (nach Serie-1-Ergebnis) gespeichert.\n\nSetzliste durch diese Auslosung ersetzen?')) return null;
+    }
+    await setDoc(ref, {
       ...data,
+      datum,
+      art: "auslosung",
       uid: user ? user.uid : null,
       email: user ? (user.email || null) : null,
       angemeldetAls: user ? (user.displayName || null) : null,
       createdAt: serverTimestamp()
     });
-    return ref.id;
+    return id;
   };
 </script>
 
@@ -760,7 +773,9 @@
   // --- Auslosung starten ---
   function startDraw() {
     players = parseNames(document.getElementById('namesInput').value);
-    serie = document.getElementById('serieInput').value.trim() || '1';
+    // Nur Serie 1 oder 2 (bestimmt die Dokument-ID in Firestore)
+    serie = document.getElementById('serieInput').value.trim() === '2' ? '2' : '1';
+    document.getElementById('serieInput').value = serie;
     tablePlan = computeTablePlan(players.length);
     if (!tablePlan || players.length < 6) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -817,13 +832,31 @@
   function runDraw() {
     document.getElementById('btnFinalRow').style.display = 'none';
 
+    // *** NEUE ZEILE: Definiere die Person, die zu einem 3er-Tisch soll ***
+    const preferredToThree = 'Pestotnik, Ralf'; // ← HIER DEN NAMEN ANPASSEN!
+
     // Tischgrößen: erst alle 4er, dann alle 3er
     const sizes = [];
     for (let i = 0; i < tablePlan.fours; i++) sizes.push(4);
     for (let i = 0; i < tablePlan.threes; i++) sizes.push(3);
 
     // Zufällige Permutation -> feste, konfliktfreie Zuordnung (jeder Name genau einmal)
-    const perm = shuffle(players);
+    let perm = shuffle(players);
+    
+    // *** NEUE LOGIK: Stelle sicher, dass preferredToThree in einen 3er-Tisch am Ende kommt ***
+    if (tablePlan.threes > 0 && players.includes(preferredToThree)) {
+      const idx = perm.indexOf(preferredToThree);
+      if (idx > -1) {
+        perm.splice(idx, 1); // entfernen
+        
+        // Berechne, wo die 3er-Tische beginnen (nach allen 4er-Tischen)
+        const startOfThrees = tablePlan.fours * 4; // Anzahl Spieler in 4er-Tischen
+        
+        // Füge die Person am Anfang der 3er-Tische ein
+        perm.splice(startOfThrees, 0, preferredToThree);
+      }
+    }
+
     const n = players.length;
 
     assignment = [];
@@ -1047,6 +1080,12 @@
           spieler: a.members
         }))
       });
+      if (!id) {
+        btn.disabled = false;
+        status.textContent = 'Nicht gespeichert – die vorhandene Setzliste bleibt erhalten.';
+        status.className = 'save-status';
+        return;
+      }
       btn.textContent = 'Gespeichert';
       status.textContent = 'In Firestore gespeichert ✓ (ID: ' + id + ')';
       status.className = 'save-status ok';

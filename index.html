@@ -1304,8 +1304,24 @@ function updateRanking() {
         function siegerehrungAnzeigen() {
             const s = siegerehrung;
             if (!s) return;
-            const p = s.liste[s.pos];
             const box = document.getElementById('siegerehrungModal');
+            // Introseite vor dem letzten Platz
+            if (s.pos === s.liste.length) {
+                const logo = window.SKAT_LOGO_DATA ? `<div class="se-intro-logo"><img src="${window.SKAT_LOGO_DATA}" alt="Vereinslogo"></div>` : '';
+                box.querySelector('.se-inhalt').innerHTML = `
+                <div class="se-text se-intro">
+                    ${logo}
+                    <div class="se-intro-titel">Siegerehrung</div>
+                    <div class="se-intro-unter">${s.weihnachten ? 'Weihnachtsturnier' : 'Spieltag'} ${s.datum.de}</div>
+                    <div class="se-intro-info">${s.liste.length} Teilnehmer</div>
+                </div>
+                <div class="se-bild">${s.weihnachten ? siegerehrungBild(1) : siegerehrungPokal(1)}</div>`;
+                box.querySelector('.se-zaehler').textContent = '';
+                box.querySelector('.se-zurueck').disabled = true;
+                box.querySelector('.se-weiter').textContent = 'Los geht’s ▶';
+                return;
+            }
+            const p = s.liste[s.pos];
             const bild = s.weihnachten ? siegerehrungBild(p.platz) : siegerehrungPokal(p.platz);
             const farbe = p.platz === 1 ? '#f2c230' : p.platz === 2 ? '#e0e0e0' : p.platz === 3 ? '#e0a060' : '#ffffff';
             box.querySelector('.se-inhalt').innerHTML = `
@@ -1316,7 +1332,7 @@ function updateRanking() {
                 </div>
                 <div class="se-bild">${bild}</div>`;
             box.querySelector('.se-zaehler').textContent = `${s.liste.length - s.pos} / ${s.liste.length}`;
-            box.querySelector('.se-zurueck').disabled = s.pos === s.liste.length - 1;
+            box.querySelector('.se-zurueck').disabled = false;
             const weiter = box.querySelector('.se-weiter');
             weiter.textContent = s.pos === 0 ? 'Schließen' : 'Nächster ▶';
         }
@@ -1337,7 +1353,7 @@ function updateRanking() {
             if (currentRound !== 2 && !confirm('Serie 2 ist noch nicht gestartet – Siegerehrung mit dem Stand nach Serie 1 zeigen?')) return;
             const datum = siegerehrungDatum();
             const weihnachten = datum.monat === 12;
-            siegerehrung = { liste, pos: liste.length - 1, weihnachten };
+            siegerehrung = { liste, pos: liste.length, weihnachten, datum }; // pos = liste.length: Introseite
             let box = document.getElementById('siegerehrungModal');
             if (!box) {
                 box = document.createElement('div');
@@ -1356,6 +1372,11 @@ function updateRanking() {
   #siegerehrungModal .se-punkte { font-size:clamp(28px,4.5vw,60px); margin-top:2vh; color:#ffecb3; }
   #siegerehrungModal .se-name { font-size:clamp(34px,6vw,84px); font-weight:bold; margin-top:3vh; }
   #siegerehrungModal .se-bild { flex:0 1 38%; max-width:460px; }
+  #siegerehrungModal .se-intro-logo { display:inline-flex; background:white; border-radius:16px; padding:10px; box-shadow:0 4px 16px rgba(0,0,0,.35); margin-bottom:3vh; }
+  #siegerehrungModal .se-intro-logo img { height:clamp(80px,14vh,150px); width:auto; display:block; }
+  #siegerehrungModal .se-intro-titel { font-size:clamp(56px,10vw,130px); font-weight:bold; line-height:1; color:#f2c230; }
+  #siegerehrungModal .se-intro-unter { font-size:clamp(28px,4.5vw,58px); margin-top:2vh; }
+  #siegerehrungModal .se-intro-info { font-size:clamp(20px,2.6vw,32px); margin-top:2vh; color:#ffecb3; }
   #siegerehrungModal .se-bild svg { width:100%; height:auto; display:block; }
   #siegerehrungModal .se-fuss { display:flex; justify-content:space-between; align-items:center; padding:16px 30px 22px; }
   #siegerehrungModal button { width:auto; margin:0; font-size:20px; padding:12px 26px; border-radius:6px; border:none; cursor:pointer; }
@@ -1400,7 +1421,7 @@ function updateRanking() {
         };
 
         window.siegerehrungZurueck = function() {
-            if (!siegerehrung || siegerehrung.pos >= siegerehrung.liste.length - 1) return;
+            if (!siegerehrung || siegerehrung.pos >= siegerehrung.liste.length) return;
             siegerehrung.pos++;
             siegerehrungAnzeigen();
         };
@@ -4371,8 +4392,25 @@ function updateRanking() {
             const origLabel = btn ? btn.textContent : '';
             if (btn) { btn.disabled = true; btn.textContent = 'Speichere …'; }
             try {
-                await addDoc(collection(db, 'turnierauslosungen'), {
+                // Feste Dokument-ID je Spieltag und Serie (z. B. 2026-12-15_S2):
+                // erneutes Speichern überschreibt statt Duplikate anzulegen.
+                const dateInput = document.getElementById('importDate');
+                const datum = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+                const ref = doc(db, 'turnierauslosungen', `${datum}_S${payload.serie}`);
+                // Serie 2 kann ausgelost (turnier.html, art 'auslosung') oder nach Serie 1
+                // gesetzt sein (art 'setzliste'). Eine Auslosung nur nach Rückfrage ersetzen.
+                const vorhanden = await getDoc(ref);
+                if (vorhanden.exists() && vorhanden.data().art !== 'setzliste') {
+                    const [y, m, d] = datum.split('-');
+                    if (!confirm(`Für den ${d}.${m}.${y} ist Serie ${payload.serie} bereits ausgelost und gespeichert.\n\nAuslosung durch die Setzliste (nach Serie-1-Ergebnis) ersetzen?`)) {
+                        if (btn) { btn.textContent = origLabel; btn.disabled = false; }
+                        return false;
+                    }
+                }
+                await setDoc(ref, {
+                    datum,
                     serie: payload.serie,
+                    art: 'setzliste',
                     spielerAnzahl: payload.spielerAnzahl,
                     tischAnzahl: payload.tischAnzahl,
                     tische: payload.tische,
