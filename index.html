@@ -244,7 +244,10 @@
         <div class="right">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                 <h3 id="rankingTitle" style="margin:0;">Zwischenstand nach Serie 1</h3>
+                <div style="display:flex;gap:6px;">
+                <button onclick="showSiegerehrung()" style="background:#2e7d32;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Siegerehrung</button>
                 <button onclick="neustart()" style="background:#e53935;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Neustart</button>
+                </div>
             </div>
             <table id="rankingTable">
                 <thead>
@@ -281,7 +284,10 @@
         // sind aber im Haupt-Dropdown wähl-/eintragbar und in der Tageswertung sichtbar.
         const EXTRA_SPIELTAGE = [
             { iso: '2026-07-11', dd: '11', mm: '07', yyyy: '2026', label: '11.07',
-              name: '43. Pulheimer Stadtmeisterschaft', extra: true }
+              name: '43. Pulheimer Stadtmeisterschaft', extra: true },
+            // Weihnachtsturnier: normale Mitspielerliste (kein Preisskat-Filter)
+            { iso: '2026-12-15', dd: '15', mm: '12', yyyy: '2026', label: '15.12',
+              name: 'Weihnachtsturnier', extra: true, preisskat: false }
         ];
 
         // Saison (Jahr) für alle Wertungen. 24 Spieltage alle 2 Wochen ab dem 2. Dienstag im Januar,
@@ -656,7 +662,7 @@ function loadPlayers(text) {
         // Spieler, die nicht in der lokalen Liste stehen) werden temporär ergänzt.
         window.applyPreisskatFilter = function() {
             const sel = document.getElementById('spieltagSelect');
-            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value));
+            let isExtra = !!(sel && EXTRA_SPIELTAGE.some(ex => ex.iso === sel.value && ex.preisskat !== false));
             // Daten noch nicht sicher geladen? Nachladen anstoßen und bis dahin alle zeigen.
             if (isExtra && !window.__preisskatLoaded) {
                 if (typeof window.loadPreisskatNames === 'function') window.loadPreisskatNames();
@@ -1227,6 +1233,179 @@ function updateRanking() {
 
 
 
+
+        // ===== Siegerehrung: Platzierungen vom letzten bis zum ersten Platz =====
+        // Datenbasis ist die aktuelle Rangliste (nach Serie 2: Gesamt, sonst Serie 1).
+        // Im Dezember (Weihnachtsturnier) mit Weihnachtsbild und -titel.
+        let siegerehrung = null;
+
+        function siegerehrungDatum() {
+            const el = document.getElementById('importDate');
+            const iso = (el && el.value) || new Date().toISOString().slice(0, 10);
+            const [y, m, d] = iso.split('-');
+            return { iso, de: `${d}.${m}.${y}`, monat: Number(m) };
+        }
+
+        function siegerehrungBild(platz) {
+            // Kugelfarben: Platz 1 gold, 2 silber, 3 bronze, sonst rot
+            const kugel = platz === 1 ? '#f2c230' : platz === 2 ? '#c9ced6' : platz === 3 ? '#cd7f32' : '#d32f2f';
+            let schnee = '';
+            for (let i = 0; i < 18; i++) {
+                const x = (i * 53) % 400 + 10, r = 2 + (i % 3), dur = 6 + (i % 5), delay = -(i * 0.7);
+                schnee += `<circle cx="${x}" cy="-10" r="${r}" fill="white" opacity="0.9"><animate attributeName="cy" from="-10" to="470" dur="${dur}s" begin="${delay}s" repeatCount="indefinite"/></circle>`;
+            }
+            return `<svg viewBox="0 0 420 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Weihnachtsbaum">
+  <defs><radialGradient id="seGlanz" cx="35%" cy="35%" r="65%"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+  <rect x="190" y="370" width="40" height="50" fill="#6d4c41"/>
+  <polygon points="210,70 120,200 160,200 90,300 145,300 60,390 360,390 275,300 330,300 260,200 300,200" fill="#2e7d32"/>
+  <polygon points="210,70 150,160 270,160" fill="#388e3c"/>
+  <path d="M140 205 Q210 235 285 195 M110 300 Q210 335 315 290" stroke="#f2c230" stroke-width="5" fill="none" stroke-dasharray="2 9" stroke-linecap="round"/>
+  <g>
+    <circle cx="170" cy="245" r="15" fill="${kugel}"/><circle cx="170" cy="245" r="15" fill="url(#seGlanz)"/>
+    <circle cx="255" cy="260" r="15" fill="${kugel}"/><circle cx="255" cy="260" r="15" fill="url(#seGlanz)"/>
+    <circle cx="130" cy="345" r="16" fill="${kugel}"/><circle cx="130" cy="345" r="16" fill="url(#seGlanz)"/>
+    <circle cx="215" cy="355" r="16" fill="${kugel}"/><circle cx="215" cy="355" r="16" fill="url(#seGlanz)"/>
+    <circle cx="295" cy="340" r="16" fill="${kugel}"/><circle cx="295" cy="340" r="16" fill="url(#seGlanz)"/>
+    <circle cx="210" cy="180" r="12" fill="${kugel}"/><circle cx="210" cy="180" r="12" fill="url(#seGlanz)"/>
+  </g>
+  <polygon points="210,28 221,58 253,58 227,77 237,108 210,89 183,108 193,77 167,58 199,58" fill="#f2c230" stroke="#c99700" stroke-width="2">
+    <animateTransform attributeName="transform" type="rotate" values="-6 210 70;6 210 70;-6 210 70" dur="3s" repeatCount="indefinite"/>
+  </polygon>
+  <rect x="80" y="395" width="70" height="50" rx="4" fill="#c62828"/><rect x="110" y="395" width="10" height="50" fill="#f2c230"/>
+  <rect x="270" y="400" width="60" height="45" rx="4" fill="#1565c0"/><rect x="295" y="400" width="10" height="45" fill="#e0e0e0"/>
+  ${schnee}
+</svg>`;
+        }
+
+        function siegerehrungPokal(platz) {
+            const farbe = platz === 1 ? '#f2c230' : platz === 2 ? '#c9ced6' : platz === 3 ? '#cd7f32' : '#90a4ae';
+            return `<svg viewBox="0 0 420 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pokal">
+  <path d="M120 60 H300 V150 Q300 250 210 260 Q120 250 120 150 Z" fill="${farbe}"/>
+  <path d="M120 90 H70 Q60 170 135 190 M300 90 H350 Q360 170 285 190" stroke="${farbe}" stroke-width="14" fill="none"/>
+  <rect x="190" y="258" width="40" height="70" fill="${farbe}"/>
+  <rect x="135" y="325" width="150" height="40" rx="6" fill="#5d4037"/>
+  <text x="210" y="190" text-anchor="middle" font-size="90" font-weight="bold" fill="white" font-family="Arial">${platz}</text>
+</svg>`;
+        }
+
+        function siegerehrungListe() {
+            const nachSerie2 = currentRound === 2;
+            const liste = selectedPlayers.map(name => {
+                const r = results[name] || {};
+                const punkte = nachSerie2 ? (Number(r.res1) || 0) + (Number(r.res2) || 0) : (Number(r.res1) || 0);
+                return { name, punkte };
+            }).sort((a, b) => b.punkte - a.punkte);
+            liste.forEach((p, i) => {
+                p.platz = (i > 0 && p.punkte === liste[i - 1].punkte) ? liste[i - 1].platz : i + 1;
+            });
+            return liste;
+        }
+
+        function siegerehrungAnzeigen() {
+            const s = siegerehrung;
+            if (!s) return;
+            const p = s.liste[s.pos];
+            const box = document.getElementById('siegerehrungModal');
+            const bild = s.weihnachten ? siegerehrungBild(p.platz) : siegerehrungPokal(p.platz);
+            const farbe = p.platz === 1 ? '#f2c230' : p.platz === 2 ? '#e0e0e0' : p.platz === 3 ? '#e0a060' : '#ffffff';
+            box.querySelector('.se-inhalt').innerHTML = `
+                <div class="se-text">
+                    <div class="se-platz" style="color:${farbe};">${p.platz}. Platz</div>
+                    <div class="se-punkte">${p.punkte.toLocaleString('de-DE')} Punkte</div>
+                    <div class="se-name">${escapeTv(p.name)}</div>
+                </div>
+                <div class="se-bild">${bild}</div>`;
+            box.querySelector('.se-zaehler').textContent = `${s.liste.length - s.pos} / ${s.liste.length}`;
+            box.querySelector('.se-zurueck').disabled = s.pos === s.liste.length - 1;
+            const weiter = box.querySelector('.se-weiter');
+            weiter.textContent = s.pos === 0 ? 'Schließen' : 'Nächster ▶';
+        }
+
+        function siegerehrungTaste(e) {
+            if (!siegerehrung) return;
+            if (e.key === 'Escape') { e.preventDefault(); window.closeSiegerehrung(); }
+            else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') { e.preventDefault(); window.siegerehrungWeiter(); }
+            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); window.siegerehrungZurueck(); }
+        }
+
+        window.showSiegerehrung = function() {
+            const liste = siegerehrungListe();
+            if (!liste.length || liste.every(p => p.punkte === 0)) {
+                alert('Es liegen noch keine Ergebnisse vor.');
+                return;
+            }
+            if (currentRound !== 2 && !confirm('Serie 2 ist noch nicht gestartet – Siegerehrung mit dem Stand nach Serie 1 zeigen?')) return;
+            const datum = siegerehrungDatum();
+            const weihnachten = datum.monat === 12;
+            siegerehrung = { liste, pos: liste.length - 1, weihnachten };
+            let box = document.getElementById('siegerehrungModal');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'siegerehrungModal';
+                box.innerHTML = `
+<style>
+  #siegerehrungModal { position:fixed; inset:0; z-index:3000; display:flex; flex-direction:column; font-family:Arial,sans-serif; color:white;
+    background: radial-gradient(ellipse at top, #1b5e20 0%, #0d3b16 55%, #06210c 100%); }
+  #siegerehrungModal.se-neutral { background: radial-gradient(ellipse at top, #283593 0%, #1a237e 55%, #0d1240 100%); }
+  #siegerehrungModal .se-kopf { padding:18px 30px; font-size:30px; font-weight:bold; text-align:center; letter-spacing:.5px; }
+  #siegerehrungModal .se-inhalt { flex:1; display:flex; align-items:center; justify-content:center; gap:4vw; padding:0 4vw; animation: seEin .6s ease; }
+  #siegerehrungModal .se-text { flex:1 1 55%; text-align:left; }
+  #siegerehrungModal .se-platz { font-size:clamp(48px,9vw,120px); font-weight:bold; line-height:1.05; }
+  #siegerehrungModal .se-punkte { font-size:clamp(28px,4.5vw,60px); margin-top:2vh; color:#ffecb3; }
+  #siegerehrungModal .se-name { font-size:clamp(34px,6vw,84px); font-weight:bold; margin-top:3vh; }
+  #siegerehrungModal .se-bild { flex:0 1 38%; max-width:460px; }
+  #siegerehrungModal .se-bild svg { width:100%; height:auto; display:block; }
+  #siegerehrungModal .se-fuss { display:flex; justify-content:space-between; align-items:center; padding:16px 30px 22px; }
+  #siegerehrungModal button { width:auto; margin:0; font-size:20px; padding:12px 26px; border-radius:6px; border:none; cursor:pointer; }
+  #siegerehrungModal .se-weiter { background:#c62828; color:white; font-weight:bold; }
+  #siegerehrungModal .se-weiter:hover { background:#b71c1c; }
+  #siegerehrungModal .se-zurueck, #siegerehrungModal .se-schliessen { background:rgba(255,255,255,.18); color:white; }
+  #siegerehrungModal .se-zurueck:disabled { opacity:.35; cursor:default; }
+  #siegerehrungModal .se-zaehler { font-size:16px; opacity:.75; }
+  @keyframes seEin { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+</style>
+<div class="se-kopf"></div>
+<div class="se-inhalt"></div>
+<div class="se-fuss">
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="se-schliessen" onclick="closeSiegerehrung()">Schließen</button>
+    <button class="se-zurueck" onclick="siegerehrungZurueck()">◀ Zurück</button>
+    <span class="se-zaehler"></span>
+  </div>
+  <button class="se-weiter" onclick="siegerehrungWeiter()">Nächster ▶</button>
+</div>`;
+                document.body.appendChild(box);
+            }
+            box.classList.toggle('se-neutral', !weihnachten);
+            box.querySelector('.se-kopf').textContent = weihnachten
+                ? `🎄 1. Sintherner Skatclub – Weihnachtsturnier ${datum.de} 🎄`
+                : `1. Sintherner Skatclub – Siegerehrung ${datum.de}`;
+            box.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            document.addEventListener('keydown', siegerehrungTaste);
+            siegerehrungAnzeigen();
+        };
+
+        window.siegerehrungWeiter = function() {
+            if (!siegerehrung) return;
+            if (siegerehrung.pos === 0) { window.closeSiegerehrung(); return; }
+            siegerehrung.pos--;
+            siegerehrungAnzeigen();
+        };
+
+        window.siegerehrungZurueck = function() {
+            if (!siegerehrung || siegerehrung.pos >= siegerehrung.liste.length - 1) return;
+            siegerehrung.pos++;
+            siegerehrungAnzeigen();
+        };
+
+        window.closeSiegerehrung = function() {
+            const box = document.getElementById('siegerehrungModal');
+            if (box) box.style.display = 'none';
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', siegerehrungTaste);
+            siegerehrung = null;
+        };
 
         function neustart() {
             if (!confirm('Wirklich alle Ergebnisse löschen und neu starten?')) return;
