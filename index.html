@@ -1174,9 +1174,11 @@ window.closeTischverteilung = function() {
 // Einstellung pro Gerät in localStorage, nicht Teil von skat_state.
 let maskiert = false;
 try { maskiert = localStorage.getItem('skat_maskiert') === '1'; } catch (e) {}
+// Maskiert immer 4-stellig: nur die letzte Ziffer bleibt sichtbar (1180 -> xxx0, 95 -> xxx5)
 function maskWert(v) {
     if (!maskiert || v === '' || v == null) return v;
-    return String(v).replace(/\d(?=\d)/g, 'x');
+    const ziffern = String(v).replace(/\D/g, '');
+    return ziffern ? 'xxx' + ziffern.slice(-1) : v;
 }
 function setMaskiert(an) {
     maskiert = !!an;
@@ -2602,7 +2604,7 @@ function updateRanking() {
                 dates.forEach((d, i) => {
                     const opt = document.createElement('option');
                     opt.value = String(i);
-                    opt.textContent = d.extra ? `${d.name} — ${d.dd}.${d.mm}.${d.yyyy}` : `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}`;
+                    opt.textContent = d.extra ? `${d.name} — ${d.dd}.${d.mm}.${d.yyyy}` : `ST ${i + 1} — ${d.dd}.${d.mm}.${d.yyyy}` + (SPIELTAG_NAMEN[d.iso] ? ` – ${SPIELTAG_NAMEN[d.iso]}` : '');
                     select.appendChild(opt);
                 });
                 select.value = String(pickDefaultSpieltagIndex(dates));
