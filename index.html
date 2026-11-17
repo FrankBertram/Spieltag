@@ -245,6 +245,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                 <h3 id="rankingTitle" style="margin:0;">Zwischenstand nach Serie 1</h3>
                 <div style="display:flex;gap:6px;">
+                <label title="Punkte in der Rangliste verdeckt anzeigen (nur letzte Ziffer)" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="maskiertCb" onchange="setMaskiert(this.checked)" style="margin:0;"> maskiert</label>
                 <button onclick="showSiegerehrung()" style="background:#2e7d32;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Siegerehrung</button>
                 <button onclick="neustart()" style="background:#e53935;color:white;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:Arial,sans-serif;white-space:nowrap;width:auto;margin:0;">Neustart</button>
                 </div>
@@ -282,13 +283,18 @@
         // Zusatztermine außerhalb der 24 regulären Spieltage.
         // Werden bewusst NICHT in Monats- und Jahreswertung berücksichtigt,
         // sind aber im Haupt-Dropdown wähl-/eintragbar und in der Tageswertung sichtbar.
+        // Weitere Sondertage kommen aus Firestore 'spieltag_config' (uebernimmSpieltagConfig).
+        // preisskat !== false: in der Auswahlliste nur Preisskat-Teilnehmer zeigen.
         const EXTRA_SPIELTAGE = [
             { iso: '2026-07-11', dd: '11', mm: '07', yyyy: '2026', label: '11.07',
               name: '43. Pulheimer Stadtmeisterschaft', extra: true },
-            // Weihnachtsturnier: normale Mitspielerliste (kein Preisskat-Filter)
+            // Weihnachtsturnier: normale Mitspielerliste (kein Preisskat-Filter), wir spielen
+            // unter allen die Kasse aus. Fest eingetragen, damit es auch ohne Firestore da ist.
             { iso: '2026-12-15', dd: '15', mm: '12', yyyy: '2026', label: '15.12',
               name: 'Weihnachtsturnier', extra: true, preisskat: false }
         ];
+        // Namen aus spieltag_config für reguläre Spieltage (z. B. Frühjahrspreisskat): iso -> name
+        const SPIELTAG_NAMEN = {};
 
         // Saison (Jahr) für alle Wertungen. 24 Spieltage alle 2 Wochen ab dem 2. Dienstag im Januar,
         // Online-Abende jeweils eine Woche später (zwischen zwei Spieltagen).
@@ -310,6 +316,48 @@
             }
             return dates;
         }
+        // Haupt-Dropdown (Spieltag-Auswahl) aufbauen; die aktuelle Auswahl bleibt erhalten,
+        // sonst wird der heutige Termin vorgewählt.
+        function fuelleSpieltagSelect() {
+            const sel = document.getElementById('spieltagSelect');
+            if (!sel) return;
+            const dateInput = document.getElementById('importDate');
+            const vorher = sel.value || (dateInput ? dateInput.value : '');
+            while (sel.options.length > 1) sel.remove(1); // Platzhalter "-- Spieltag --" bleibt
+            const add = (iso, text) => {
+                const opt = document.createElement('option');
+                opt.value = iso;
+                opt.textContent = text;
+                if (iso === vorher) opt.selected = true;
+                sel.appendChild(opt);
+            };
+            saisonTermine(saisonJahr).forEach((d, i) => {
+                add(d.iso, `Spieltag ${i + 1} (${d.full})` + (SPIELTAG_NAMEN[d.iso] ? ` – ${SPIELTAG_NAMEN[d.iso]}` : ''));
+            });
+            // Zusatztermine (z. B. Stadtmeisterschaft, Weihnachtsturnier) der Saison ans Ende hängen
+            EXTRA_SPIELTAGE.filter(ex => ex.yyyy === String(saisonJahr))
+                .sort((a, b) => a.iso.localeCompare(b.iso))
+                .forEach(ex => add(ex.iso, `${ex.name} (${ex.dd}.${ex.mm}.${ex.yyyy})`));
+        }
+
+        // Sondertage aus Firestore 'spieltag_config' (Doc-ID = YYYY-MM-DD, Feld name,
+        // optional preisskat: true). Fällt der Tag auf einen regulären Spieltag, wird nur
+        // der Name im Dropdown ergänzt (zählt weiter für Monats-/Jahreswertung). Sonst wird
+        // er Zusatztermin (zählt nicht), ohne Preisskat-Filter, außer preisskat === true.
+        function uebernimmSpieltagConfig(eintraege) {
+            eintraege.forEach(e => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(e.iso) || !e.name) return;
+                const [yyyy, mm, dd] = e.iso.split('-');
+                const regulaer = saisonTermine(Number(yyyy)).some(d => d.iso === e.iso);
+                if (regulaer) { SPIELTAG_NAMEN[e.iso] = e.name; return; }
+                if (EXTRA_SPIELTAGE.some(ex => ex.iso === e.iso)) return; // fest eingetragen
+                EXTRA_SPIELTAGE.push({ iso: e.iso, dd, mm, yyyy, label: `${dd}.${mm}`,
+                    name: e.name, extra: true, preisskat: e.preisskat === true });
+            });
+            fuelleSpieltagSelect();
+            if (typeof window.applyPreisskatFilter === 'function') window.applyPreisskatFilter();
+        }
+
         // Jahresauswahl in den Wertungs-Fenstern (select[data-saison-select]) befüllen
         function fillSaisonSelects() {
             const bis = Math.max(new Date().getFullYear(), saisonJahr);
@@ -363,22 +411,7 @@
             // Spieltag-Dropdown füllen: Spieltage der aktuellen Saison (alle 2 Wochen ab 2. Dienstag im Januar)
             const spieltagSelect = document.getElementById('spieltagSelect');
             if (spieltagSelect) {
-                const todayIso = dateInput ? dateInput.value : '';
-                saisonTermine(saisonJahr).forEach((d, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = d.iso;
-                    opt.textContent = `Spieltag ${i + 1} (${d.full})`;
-                    if (d.iso === todayIso) opt.selected = true;
-                    spieltagSelect.appendChild(opt);
-                });
-                // Zusatztermine (z. B. Stadtmeisterschaft) der Saison ans Ende hängen
-                EXTRA_SPIELTAGE.filter(ex => ex.yyyy === String(saisonJahr)).forEach(ex => {
-                    const opt = document.createElement('option');
-                    opt.value = ex.iso;
-                    opt.textContent = `${ex.name} (${ex.dd}.${ex.mm}.${ex.yyyy})`;
-                    if (ex.iso === todayIso) opt.selected = true;
-                    spieltagSelect.appendChild(opt);
-                });
+                fuelleSpieltagSelect();
                 spieltagSelect.addEventListener('change', function() {
                     if (this.value && dateInput) dateInput.value = this.value;
                     // Beim Sonderspieltag nur Preisskat-Teilnehmer in der Auswahlliste zeigen
@@ -1137,7 +1170,23 @@ window.closeTischverteilung = function() {
 
 
 
+// Maskierte Darstellung der Rangliste: nur die letzte Ziffer bleibt sichtbar (1180 -> xxx0).
+// Einstellung pro Gerät in localStorage, nicht Teil von skat_state.
+let maskiert = false;
+try { maskiert = localStorage.getItem('skat_maskiert') === '1'; } catch (e) {}
+function maskWert(v) {
+    if (!maskiert || v === '' || v == null) return v;
+    return String(v).replace(/\d(?=\d)/g, 'x');
+}
+function setMaskiert(an) {
+    maskiert = !!an;
+    try { localStorage.setItem('skat_maskiert', maskiert ? '1' : '0'); } catch (e) {}
+    updateRanking();
+}
+
 function updateRanking() {
+    const maskCb = document.getElementById('maskiertCb');
+    if (maskCb) maskCb.checked = maskiert;
     // Anzahl der gewählten Mitspieler in der Überschrift "Mitspieler wählen: ##"
     const anzahlEl = document.getElementById('mitspielerAnzahl');
     if (anzahlEl) anzahlEl.textContent = selectedPlayers.length;
@@ -1186,6 +1235,12 @@ function updateRanking() {
         tischNr++;
     }
 
+    // Maskiert in Serie 2: alphabetisch, ohne Rang und Tischlinien, damit die Reihenfolge
+    // den Gesamtstand nicht verrät (Tischnummern wurden oben schon nach Punkten vergeben).
+    // In Serie 1 bleibt die Sortierung nach Punkten (Grundlage der Setzliste für Serie 2).
+    const alphabetisch = maskiert && currentRound === 2;
+    if (alphabetisch) playersToShow.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
     // Tabelle rendern
     let currentRank = 1;
     playersToShow.forEach((p, i) => {
@@ -1197,18 +1252,18 @@ function updateRanking() {
         } else if (scoreKey !== prevScoreKey) {
             currentRank = i + 1;
         }
-        const rank = (i === 0 || scoreKey !== prevScoreKey) ? currentRank : '';
+        const rank = alphabetisch ? '' : ((i === 0 || scoreKey !== prevScoreKey) ? currentRank : '');
 
         const row = document.createElement('tr');
 
         // Prüfen ob Tischwechsel → dicke Linie
         const isTableChange = i === 0 || p.table !== playersToShow[i-1].table;
-        row.className = isTableChange ? 'thick-line' : '';
+        row.className = !alphabetisch && isTableChange ? 'thick-line' : '';
 
         const safeName = p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const manualStyle = 'font-style:italic;color:#d32f2f;';
-        const res1Html = p.res1 !== '' ? (p.imp1 ? String(p.res1) : `<span style="${manualStyle}">${p.res1}</span>`) : '-';
-        const res2Html = p.res2 !== '' ? (p.imp2 ? String(p.res2) : `<span style="${manualStyle}">${p.res2}</span>`) : '-';
+        const res1Html = p.res1 !== '' ? (p.imp1 ? String(maskWert(p.res1)) : `<span style="${manualStyle}">${maskWert(p.res1)}</span>`) : '-';
+        const res2Html = p.res2 !== '' ? (p.imp2 ? String(maskWert(p.res2)) : `<span style="${manualStyle}">${maskWert(p.res2)}</span>`) : '-';
         row.innerHTML = `
             <td>${rank}</td>
             <td>${p.name}</td>
@@ -1225,7 +1280,7 @@ function updateRanking() {
                     ${p.res2 !== '' ? `<button class="edit-btn" onclick="prepareEdit('${safeName}', 2)">Kor.</button>` : ''}
                 </div>
             </td>
-            <td>${currentRound === 2 ? p.total : '-'}</td>
+            <td>${currentRound === 2 ? maskWert(p.total) : '-'}</td>
         `;
         tbody.appendChild(row);
     });
@@ -1805,6 +1860,18 @@ function updateRanking() {
         const db = getFirestore(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+
+        // Sondertage (Name, ggf. preisskat) aus 'spieltag_config' einmalig laden
+        getDocs(collection(db, 'spieltag_config'))
+            .then(snap => {
+                const eintraege = [];
+                snap.forEach(d => {
+                    const x = d.data() || {};
+                    eintraege.push({ iso: d.id, name: x.name, preisskat: x.preisskat });
+                });
+                if (typeof uebernimmSpieltagConfig === 'function') uebernimmSpieltagConfig(eintraege);
+            })
+            .catch(err => console.warn('spieltag_config nicht lesbar:', err && err.message));
 
         onAuthStateChanged(auth, user => {
             const statusEl = document.getElementById('authStatus');
@@ -3148,12 +3215,55 @@ function updateRanking() {
         // Pott: Spieltag 2 € je Teilnehmer, Monat 1 € je Teilnehmer der Spieltage des Monats.
         // Verteilung 3/6, 2/6, 1/6 auf 0,50 € gerundet (Rundungsrest an Platz 1).
         // Bei Gleichstand teilen sich die Betroffenen ihre Anteile.
-        function umschlagGewinne(pott, top) {
+        // Sonderpreisskat (Frühjahr/Sommer/Herbst): 9 € Einsatz je Teilnehmer, Auszahlung laut
+        // Vereinstabelle (12–24 Teilnehmer, 4–6 Plätze). Außerhalb der Tabelle: 4 bzw. 6 Plätze
+        // anteilig (4:3:2:1 bzw. 6:5:4:3:2:1), auf volle Euro gerundet, Rest an Platz 1.
+        const SONDERPREISSKAT_EINSATZ = 9;
+        const SONDERPREISSKAT_AUSZAHLUNG = {
+            12: [43, 32, 22, 11],
+            13: [47, 35, 23, 12],
+            14: [50, 38, 25, 13],
+            15: [54, 40, 27, 14],
+            16: [58, 43, 28, 15],
+            17: [51, 41, 30, 20, 11],
+            18: [54, 43, 32, 22, 11],
+            19: [57, 45, 34, 23, 12],
+            20: [60, 48, 36, 24, 12],
+            21: [53, 45, 36, 27, 18, 10],
+            22: [56, 47, 38, 28, 19, 10],
+            23: [59, 49, 39, 30, 20, 10],
+            24: [62, 51, 41, 31, 21, 10]
+        };
+        // Reguläre Sonderpreisskat-Termine; weitere über spieltag_config (Name mit "preisskat")
+        const SONDERPREISSKAT_TERMINE = ['2026-03-24', '2026-06-16', '2026-09-22'];
+
+        function istSonderpreisskat(iso) {
+            if (!iso || !saisonTermine(Number(iso.slice(0, 4))).some(d => d.iso === iso)) return false;
+            return SONDERPREISSKAT_TERMINE.includes(iso) || /preisskat/i.test(SPIELTAG_NAMEN[iso] || '');
+        }
+
+        function sonderpreisskatAnteile(teilnehmer) {
+            if (SONDERPREISSKAT_AUSZAHLUNG[teilnehmer]) return SONDERPREISSKAT_AUSZAHLUNG[teilnehmer].slice();
+            const pott = teilnehmer * SONDERPREISSKAT_EINSATZ;
+            const gewichte = teilnehmer < 12 ? [4, 3, 2, 1] : [6, 5, 4, 3, 2, 1];
+            const summe = gewichte.reduce((a, b) => a + b, 0);
+            const anteile = gewichte.map(g => Math.round(pott * g / summe));
+            anteile[0] += pott - anteile.reduce((a, b) => a + b, 0);
+            return anteile;
+        }
+
+        // anteile: optional feste Beträge je Platz (Sonderpreisskat), sonst 3/6, 2/6, 1/6
+        function umschlagGewinne(pott, top, festeAnteile) {
             const halb = v => Math.round(v * 2) / 2;
-            const g2 = halb(pott * 2 / 6);
-            const g3 = halb(pott / 6);
-            const anteile = [pott - g2 - g3, g2, g3];
-            while (anteile.length < top.length) anteile.push(0); // Gleichstand auf Platz 3
+            let anteile;
+            if (festeAnteile) {
+                anteile = festeAnteile.slice();
+            } else {
+                const g2 = halb(pott * 2 / 6);
+                const g3 = halb(pott / 6);
+                anteile = [pott - g2 - g3, g2, g3];
+            }
+            while (anteile.length < top.length) anteile.push(0); // Gleichstand auf dem letzten Platz
             const gewinne = anteile.slice(0, top.length);
             let i = 0;
             while (i < top.length) {
@@ -3168,10 +3278,10 @@ function updateRanking() {
             return gewinne;
         }
 
-        function druckeUmschlaege(titel, eintraege, pott) {
+        function druckeUmschlaege(titel, eintraege, pott, festeAnteile) {
             const euro = v => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
             const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const gewinne = umschlagGewinne(pott, eintraege);
+            const gewinne = umschlagGewinne(pott, eintraege, festeAnteile);
             const seiten = eintraege.map((p, i) => `
 <div class="seite">
   <div class="kopf"><img src="${window.SKAT_LOGO_DATA}" alt=""><span>1. Sintherner Skatclub</span></div>
@@ -3203,9 +3313,9 @@ function updateRanking() {
             w.document.close();
         }
 
-        // Die ersten 3 Plätze (bei Gleichstand auf Platz 3 alle Gleichplatzierten)
-        function umschlagTop(players, scoreKey) {
-            const top = players.slice(0, 3);
+        // Die ersten n Plätze (Standard 3; bei Gleichstand auf dem letzten Platz alle Gleichplatzierten)
+        function umschlagTop(players, scoreKey, anzahl = 3) {
+            const top = players.slice(0, anzahl);
             while (players.length > top.length && players[top.length][scoreKey] === top[top.length - 1][scoreKey]) {
                 top.push(players[top.length]);
             }
@@ -3221,6 +3331,13 @@ function updateRanking() {
             const titel = date.extra
                 ? `${date.name} vom ${date.dd}.${date.mm}.${date.yyyy}`
                 : `${stNumber}. Spieltag vom ${date.dd}.${date.mm}.${date.yyyy}`;
+            if (!date.extra && istSonderpreisskat(date.iso)) {
+                const anteile = sonderpreisskatAnteile(teilnehmer);
+                const name = SPIELTAG_NAMEN[date.iso] || 'Sonderpreisskat';
+                druckeUmschlaege(`${name} vom ${date.dd}.${date.mm}.${date.yyyy}`,
+                    umschlagTop(players, 'sum', anteile.length), teilnehmer * SONDERPREISSKAT_EINSATZ, anteile);
+                return;
+            }
             druckeUmschlaege(titel, umschlagTop(players, 'sum'), teilnehmer * 2);
         };
 
@@ -4449,6 +4566,8 @@ function updateRanking() {
                     alert('Keine Firestore-Einträge für ' + datum + ' gefunden.');
                     return;
                 }
+                // Darstellung der Rangliste wählen (maskiert: Punkte als xxx0)
+                setMaskiert(confirm('Rangliste maskiert anzeigen (Punkte als xxx0)?\n\nOK = maskiert\nAbbrechen = normale Anzeige'));
                 let mode = 'all';
                 if (window.skatImportHelper.hasAnyResults()) {
                     mode = await askImportMode();
