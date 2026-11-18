@@ -296,6 +296,8 @@
         ];
         // Namen aus spieltag_config für reguläre Spieltage (z. B. Frühjahrspreisskat): iso -> name
         const SPIELTAG_NAMEN = {};
+        // Startgeld je Spieler aus spieltag_config (wie 4erListe; Default Serie 1 = 3 €, Serie 2 = 0 €): iso -> { s1, s2 }
+        const SPIELTAG_STARTGELD = {};
 
         // Saison (Jahr) für alle Wertungen. 24 Spieltage alle 2 Wochen ab dem 2. Dienstag im Januar,
         // Online-Abende jeweils eine Woche später (zwischen zwei Spieltagen).
@@ -347,6 +349,11 @@
         // er Zusatztermin (zählt nicht), ohne Preisskat-Filter, außer preisskat === true.
         function uebernimmSpieltagConfig(eintraege) {
             eintraege.forEach(e => {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(e.iso) && (e.startgeld_serie1 != null || e.startgeld_serie2 != null)) {
+                    SPIELTAG_STARTGELD[e.iso] = {
+                        s1: e.startgeld_serie1 != null ? Number(e.startgeld_serie1) : 3,
+                        s2: e.startgeld_serie2 != null ? Number(e.startgeld_serie2) : 0 };
+                }
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(e.iso) || !e.name) return;
                 const [yyyy, mm, dd] = e.iso.split('-');
                 const regulaer = saisonTermine(Number(yyyy)).some(d => d.iso === e.iso);
@@ -1874,7 +1881,8 @@ function updateRanking() {
                 const eintraege = [];
                 snap.forEach(d => {
                     const x = d.data() || {};
-                    eintraege.push({ iso: d.id, name: x.name, preisskat: x.preisskat });
+                    eintraege.push({ iso: d.id, name: x.name, preisskat: x.preisskat,
+                        startgeld_serie1: x.startgeld_serie1, startgeld_serie2: x.startgeld_serie2 });
                 });
                 if (typeof uebernimmSpieltagConfig === 'function') uebernimmSpieltagConfig(eintraege);
             })
@@ -3130,7 +3138,7 @@ function updateRanking() {
                 box.id = 'abreizgeldModal';
                 box.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2500;align-items:center;justify-content:center;font-family:Arial,sans-serif;';
                 box.innerHTML = `
-<div style="background:white;padding:20px;border-radius:8px;max-width:460px;width:92%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+<div style="background:white;padding:20px;border-radius:8px;max-width:560px;width:94%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
   <h3 class="ab-titel" style="margin:0 0 12px 0;"></h3>
   <div class="ab-inhalt" style="font-size:14px;">Lade …</div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
@@ -3156,37 +3164,49 @@ function updateRanking() {
                     const zeit = String(x.gespeichertAm || '');
                     const alt = (werte[tisch] || {})[serie];
                     if (alt && alt.zeit > zeit) return;
-                    (werte[tisch] = werte[tisch] || {})[serie] = { betrag: typeof x.abreizgeld === 'number' ? x.abreizgeld : null, zeit };
+                    (werte[tisch] = werte[tisch] || {})[serie] = { betrag: typeof x.abreizgeld === 'number' ? x.abreizgeld : null, zeit,
+                        spieler: Number(x.spielerAnzahl) || (x.spieler || []).length };
                 });
                 const euro = v => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                 const maxTisch = Math.max(7, ...Object.keys(werte).map(Number));
                 const summe = { '1': 0, '2': 0 };
                 let ohneFeld = false;
+                // Info-Spalte Serie 1: Startgeld (Spieler × Startgeld je Spieler) + Abreizgeld
+                const startgeldS1 = (SPIELTAG_STARTGELD[datum] || { s1: 3 }).s1;
+                let summeMitStart = 0;
+                const zelleMitStart = t => {
+                    const w = (werte[t] || {})['1'];
+                    if (!w) return `<td style="${td}color:#bbb;">–</td>`;
+                    if (w.betrag == null) return `<td style="${td}color:#d32f2f;">?</td>`;
+                    const v = w.betrag + w.spieler * startgeldS1;
+                    summeMitStart += v;
+                    return `<td style="${td}color:#666;" title="${w.spieler} × ${euro(startgeldS1)} Startgeld + ${euro(w.betrag)} Abreizgeld">${euro(v)}</td>`;
+                };
+                const td = 'padding:5px 10px;white-space:nowrap;text-align:right;';
                 const zelle = (t, sr) => {
                     const w = (werte[t] || {})[sr];
-                    if (!w) return '<td style="text-align:right;color:#bbb;">–</td>';
-                    if (w.betrag == null) { ohneFeld = true; return '<td style="text-align:right;color:#d32f2f;" title="ohne Abreizgeld gespeichert">?</td>'; }
+                    if (!w) return `<td style="${td}color:#bbb;">–</td>`;
+                    if (w.betrag == null) { ohneFeld = true; return `<td style="${td}color:#d32f2f;" title="ohne Abreizgeld gespeichert">?</td>`; }
                     summe[sr] += w.betrag;
-                    return `<td style="text-align:right;">${euro(w.betrag)}</td>`;
+                    return `<td style="${td}">${euro(w.betrag)}</td>`;
                 };
-                const th = 'style="text-align:right;padding:6px 10px;border-bottom:2px solid #555;"';
+                const th = 'style="text-align:right;padding:6px 10px;border-bottom:2px solid #555;white-space:nowrap;"';
                 let html = `<table style="width:100%;border-collapse:collapse;"><thead><tr>
                     <th style="text-align:left;padding:6px 10px;border-bottom:2px solid #555;">Tisch</th>
-                    <th ${th}>Serie 1</th><th ${th}>Serie 2</th><th ${th}>Summe</th></tr></thead><tbody>`;
+                    <th ${th}>Serie 1</th>
+                    <th style="text-align:right;padding:6px 10px;border-bottom:2px solid #555;color:#666;font-weight:normal;line-height:1.2;">S1 inkl. Startgeld<br><span style="font-size:11px;">(${euro(startgeldS1)} je Spieler)</span></th>
+                    <th ${th}>Serie 2</th></tr></thead><tbody>`;
                 for (let t = 1; t <= maxTisch; t++) {
-                    const vor1 = summe['1'], vor2 = summe['2'];
-                    const z1 = zelle(t, '1'), z2 = zelle(t, '2');
-                    const zeile = (summe['1'] - vor1) + (summe['2'] - vor2);
-                    const hat = ['1', '2'].some(sr => ((werte[t] || {})[sr] || {}).betrag != null);
-                    html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 10px;">Tisch ${t}</td>${z1}${z2}` +
-                        `<td style="text-align:right;font-weight:bold;">${hat ? euro(zeile) : ''}</td></tr>`;
+                    html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 10px;">Tisch ${t}</td>${zelle(t, '1')}${zelleMitStart(t)}${zelle(t, '2')}</tr>`;
                 }
-                const fuss = 'style="text-align:right;padding:7px 10px;font-weight:bold;border-top:2px solid #555;"';
+                const fuss = `style="${td}padding:7px 10px;font-weight:bold;border-top:2px solid #555;"`;
                 html += `</tbody><tfoot><tr><td style="padding:7px 10px;font-weight:bold;border-top:2px solid #555;">Summe</td>` +
-                    `<td ${fuss}>${euro(summe['1'])}</td><td ${fuss}>${euro(summe['2'])}</td>` +
-                    `<td style="text-align:right;padding:7px 10px;font-weight:bold;border-top:2px solid #555;color:#2e7d32;font-size:16px;">${euro(summe['1'] + summe['2'])}</td></tr></tfoot></table>`;
-                html = html.replace(/<td style="text-align:right;/g, '<td style="padding:5px 10px;text-align:right;');
-                if (ohneFeld) html += '<p style="margin:10px 0 0;font-size:12px;color:#d32f2f;">? = Liste ohne Abreizgeld gespeichert (vor der Umstellung der 4erListe) – bitte dort erneut speichern.</p>';
+                    `<td ${fuss}>${euro(summe['1'])}</td>` +
+                    `<td style="${td}padding:7px 10px;font-weight:bold;border-top:2px solid #555;color:#666;">${euro(summeMitStart)}</td>` +
+                    `<td ${fuss}>${euro(summe['2'])}</td></tr>` +
+                    `<tr><td style="padding:8px 10px;font-weight:bold;font-size:16px;">Gesamt</td>` +
+                    `<td colspan="3" style="${td}padding:8px 10px;font-weight:bold;font-size:16px;color:#2e7d32;">${euro(summe['1'] + summe['2'])}</td></tr></tfoot></table>`;
+                if (ohneFeld) html += '<p style="margin:10px 0 0;font-size:12px;color:#d32f2f;">? = Liste ohne Abreizgeld gespeichert (vor der Umstellung der 4erListe).</p>';
                 if (!Object.keys(werte).length) html += '<p style="margin:10px 0 0;font-size:13px;color:#555;">Für diesen Tag sind noch keine Tische gespeichert.</p>';
                 inhalt.innerHTML = html;
             } catch (err) {
